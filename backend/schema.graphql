@@ -5,7 +5,7 @@ type User {
   id: ID!
   name: String
   email: String
-  googleId: String
+  password: PasswordState
   items(where: ItemWhereInput! = {}, orderBy: [ItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ItemWhereUniqueInput): [Item!]
   itemsCount(where: ItemWhereInput! = {}): Int
   claims(where: ClaimWhereInput! = {}, orderBy: [ClaimOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ClaimWhereUniqueInput): [Claim!]
@@ -15,12 +15,15 @@ type User {
   createdAt: DateTime
 }
 
+type PasswordState {
+  isSet: Boolean!
+}
+
 scalar DateTime @specifiedBy(url: "https://datatracker.ietf.org/doc/html/rfc3339#section-5.6")
 
 input UserWhereUniqueInput {
   id: ID
   email: String
-  googleId: String
 }
 
 input UserWhereInput {
@@ -30,7 +33,7 @@ input UserWhereInput {
   id: IDFilter
   name: StringFilter
   email: StringFilter
-  googleId: StringFilter
+  password: PasswordFilter
   items: ItemManyRelationFilter
   claims: ClaimManyRelationFilter
   notifications: NotificationManyRelationFilter
@@ -76,6 +79,10 @@ input NestedStringFilter {
   not: NestedStringFilter
 }
 
+input PasswordFilter {
+  isSet: Boolean!
+}
+
 input ItemManyRelationFilter {
   every: ItemWhereInput
   some: ItemWhereInput
@@ -109,7 +116,6 @@ input UserOrderByInput {
   id: OrderDirection
   name: OrderDirection
   email: OrderDirection
-  googleId: OrderDirection
   createdAt: OrderDirection
 }
 
@@ -121,7 +127,7 @@ enum OrderDirection {
 input UserUpdateInput {
   name: String
   email: String
-  googleId: String
+  password: String
   items: ItemRelateToManyForUpdateInput
   claims: ClaimRelateToManyForUpdateInput
   notifications: NotificationRelateToManyForUpdateInput
@@ -157,7 +163,7 @@ input UserUpdateArgs {
 input UserCreateInput {
   name: String
   email: String
-  googleId: String
+  password: String
   items: ItemRelateToManyForCreateInput
   claims: ClaimRelateToManyForCreateInput
   notifications: NotificationRelateToManyForCreateInput
@@ -466,6 +472,26 @@ type Mutation {
   updateNotifications(data: [NotificationUpdateArgs!]!): [Notification]
   deleteNotification(where: NotificationWhereUniqueInput!): Notification
   deleteNotifications(where: [NotificationWhereUniqueInput!]!): [Notification]
+  endSession: Boolean!
+  authenticateUserWithPassword(email: String!, password: String!): UserAuthenticationWithPasswordResult
+  createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
+}
+
+union UserAuthenticationWithPasswordResult = UserAuthenticationWithPasswordSuccess | UserAuthenticationWithPasswordFailure
+
+type UserAuthenticationWithPasswordSuccess {
+  sessionToken: String!
+  item: User!
+}
+
+type UserAuthenticationWithPasswordFailure {
+  message: String!
+}
+
+input CreateInitialUserInput {
+  name: String
+  email: String
+  password: String
 }
 
 type Query {
@@ -482,7 +508,10 @@ type Query {
   notifications(where: NotificationWhereInput! = {}, orderBy: [NotificationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: NotificationWhereUniqueInput): [Notification!]
   notificationsCount(where: NotificationWhereInput! = {}): Int
   keystone: KeystoneMeta!
+  authenticatedItem: AuthenticatedItem
 }
+
+union AuthenticatedItem = User
 
 type KeystoneMeta {
   adminMeta: KeystoneAdminMeta!

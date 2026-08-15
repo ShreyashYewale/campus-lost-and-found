@@ -3,23 +3,27 @@ import 'package:provider/provider.dart';
 import 'config/app_config.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/api_service.dart';
+import 'core/services/item_service.dart';
 import 'ui/app.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize services (no dotenv for web)
+
+  final config = AppConfig.dev();
+
   final apiService = ApiService(
-    baseUrl: 'http://localhost:4000/graphql',
+    baseUrl: config.apiBaseUrl,
   );
-  
+
   final authService = AuthService(apiService: apiService);
-  
+  final itemService = ItemService(apiService: apiService);
+
   runApp(
     MultiProvider(
       providers: [
         Provider<ApiService>(create: (_) => apiService),
         Provider<AuthService>(create: (_) => authService),
+        Provider<ItemService>(create: (_) => itemService),
         ChangeNotifierProvider(create: (_) => AuthService(apiService: apiService)),
       ],
       child: const MyApp(),

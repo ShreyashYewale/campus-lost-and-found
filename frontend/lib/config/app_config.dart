@@ -3,21 +3,18 @@ enum Environment { development, staging, production }
 class AppConfig {
   final Environment environment;
   final String apiBaseUrl;
-  final String googleClientId;
   final bool debugLogging;
 
   AppConfig({
     required this.environment,
     required this.apiBaseUrl,
-    required this.googleClientId,
     this.debugLogging = false,
   });
 
   factory AppConfig.dev() {
     return AppConfig(
       environment: Environment.development,
-      apiBaseUrl: 'http://localhost:4000/graphql',
-      googleClientId: 'YOUR_GOOGLE_CLIENT_ID_DEV',
+      apiBaseUrl: 'http://localhost:3000/api/graphql',
       debugLogging: true,
     );
   }
@@ -26,7 +23,6 @@ class AppConfig {
     return AppConfig(
       environment: Environment.production,
       apiBaseUrl: 'https://api.campuslostfound.com/graphql',
-      googleClientId: 'YOUR_GOOGLE_CLIENT_ID_PROD',
       debugLogging: false,
     );
   }
