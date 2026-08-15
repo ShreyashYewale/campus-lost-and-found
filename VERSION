@@ -1,0 +1,14 @@
+# Version: Semantic Versioning (MAJOR.MINOR.PATCH)
+MAJOR=1
+MINOR=0
+PATCH=0
+BUILD=1
+
+# Full version string
+VERSION=1.0.0+1
+
+# Environment
+ENVIRONMENT=development
+
+# Release date
+RELEASE_DATE=2026-08-15
