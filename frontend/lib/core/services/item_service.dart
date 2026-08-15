@@ -107,4 +107,35 @@ class ItemService {
 
     return result.containsKey('createItem');
   }
+
+  Future<bool> createClaim({
+    required String itemId,
+    required String claimantId,
+    String message = '',
+  }) async {
+    final mutation = r'''
+      mutation CreateClaim(
+        $item: ItemRelateToOneForCreateInput!,
+        $claimant: UserRelateToOneForCreateInput!,
+        $message: String
+      ) {
+        createClaim(data: {
+          item: $item,
+          claimant: $claimant,
+          message: $message
+        }) {
+          id
+          status
+        }
+      }
+    ''';
+
+    final result = await apiService.mutation(mutation, variables: {
+      'item': {'connect': {'id': itemId}},
+      'claimant': {'connect': {'id': claimantId}},
+      'message': message,
+    });
+
+    return result.containsKey('createClaim');
+  }
 }

@@ -1,4 +1,5 @@
 import 'package:campus_lost_found/core/models/item.dart';
+import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -168,12 +169,30 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   Future<void> _handleClaim() async {
     setState(() => _isClaiming = true);
     try {
-      await Future.delayed(const Duration(seconds: 1));
+      final authService = context.read<AuthService>();
+      final itemService = context.read<ItemService>();
+
+      final claimantId = authService.userId;
+      if (claimantId == null || _item == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please sign in to claim an item')),
+          );
+        }
+        return;
+      }
+
+      final success = await itemService.createClaim(
+        itemId: _item!.id,
+        claimantId: claimantId,
+        message: '',
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Claim request sent!')),
+          SnackBar(content: Text(success ? 'Claim request sent!' : 'Failed to submit claim.')),
         );
-        context.pop();
+        if (success) context.pop();
       }
     } catch (e) {
       if (mounted) {
