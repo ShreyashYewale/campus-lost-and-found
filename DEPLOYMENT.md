@@ -21,17 +21,11 @@ Complete guide for deploying Campus Lost & Found to development, staging, and pr
 ### Deployment Architecture
 
 ```
-Branch         Environment    URL                         Deploy Trigger
-─────────────────────────────────────────────────────────────────────
-develop   →    Development   http://localhost:8888        Manual build
-          ↓    (Local)       (or dev.campus...)           flutter build web
-          
-staging   →    Staging       https://staging-api.xxx      Auto (GitHub Actions)
-          ↓                                               flutter-web.yml on push
-          
-master    →    Production    https://api.campuslostfound  Manual tag release
-               (Live)        .com                         v1.1.0 → GitHub Actions
-                                                          with approval
+Environment    URL                         Deployment Method
+─────────────────────────────────────────────────────────────────
+Development    http://localhost:8888       Manual local build
+Staging        https://staging-api.xxx     Manual deployment
+Production     https://api.campuslostfound.com  Manual release build
 ```
 
 ### Environment Differences
@@ -154,50 +148,30 @@ flutter build web --release
 
 #### 2. Deploy to Development
 ```bash
-# Ensure you're using dev alias
-firebase use dev
+# Build locally
+flutter build web --release
 
-# Deploy to Firebase Hosting (dev channel)
-firebase deploy --only hosting:campus-lost-found-dev
-
-# Or auto-deploy via GitHub Actions
-# (automatic on push to develop branch)
+# Serve the generated site locally
+cd build/web
+python3 -m http.server 8888
 ```
 
 #### 3. Deploy to Staging
 ```bash
-# Use staging alias
-firebase use staging
+# Build a staging release
+flutter build web --release
 
-# Deploy to Firebase
-firebase deploy --only hosting:campus-lost-found-staging
-
-# Via GitHub Actions:
-# - Merge PR to staging branch
-# - CI/CD runs automatically
-# - Deployment visible in Actions tab
+# Upload or copy the build output to your staging host
+# or use your preferred hosting provider manually
 ```
 
 #### 4. Deploy to Production
 ```bash
-# Production requires approval!
+# Build the release bundle
+flutter build web --release
 
-# Option 1: Via GitHub Actions (Recommended)
-# 1. Merge to master with version bump
-# 2. Create release tag: git tag v1.1.0
-# 3. Push tag: git push upstream v1.1.0
-# 4. GitHub Actions triggers workflow
-# 5. Workflow awaits approval
-# 6. Approve in Actions tab
-# 7. Automatic deployment to production
-
-# Option 2: Manual deployment
-firebase use prod
-firebase deploy --only hosting:campus-lost-found-prod
-
-# Create release
-git tag -a v1.1.0 -m "Release 1.1.0"
-git push upstream v1.1.0
+# Upload the generated files to the production host
+# or use your deployment platform of choice
 ```
 
 #### Verify Deployment
@@ -242,9 +216,6 @@ flutter build appbundle --release
 
 #### Deploy to Play Store
 ```bash
-# Via GitHub Actions (automatic on v*.* tags)
-# Workflow: .github/workflows/flutter-mobile.yml
-
 # Manual deployment:
 # 1. Upload to Google Play Console
 # 2. Configure release notes
@@ -283,9 +254,6 @@ flutter build ipa --release
 
 #### Deploy to App Store
 ```bash
-# Via GitHub Actions (automatic on v*.* tags)
-# Requires: APPLE_KEY_ID, APPLE_ISSUER_ID, APPLE_KEY_CONTENT
-
 # Manual deployment:
 # 1. Upload IPA to App Store Connect
 # 2. Configure app information
@@ -327,38 +295,23 @@ ML_ENABLED=true
 LOG_LEVEL=WARNING
 ```
 
-### GitHub Secrets
+### Environment Secrets
 
-Required secrets for CI/CD:
+If you are deploying through a provider, keep the required credentials in that provider's secret store instead of checking them into source control.
 
 ```bash
-# Firebase Service Accounts
-FIREBASE_SERVICE_ACCOUNT_DEV      # Base64 encoded JSON
-FIREBASE_SERVICE_ACCOUNT_STAGING  # Base64 encoded JSON
-FIREBASE_SERVICE_ACCOUNT_PROD     # Base64 encoded JSON (protected)
+# Firebase service account values
+FIREBASE_SERVICE_ACCOUNT_DEV
+FIREBASE_SERVICE_ACCOUNT_STAGING
+FIREBASE_SERVICE_ACCOUNT_PROD
 
-# Apple (iOS deployment)
+# Apple signing values
 APPLE_KEY_ID
 APPLE_ISSUER_ID
 APPLE_KEY_CONTENT
 
-# Google Play (Android deployment)
-PLAY_STORE_SERVICE_ACCOUNT        # Base64 encoded JSON
-
-# Notifications
-SLACK_WEBHOOK                      # Slack deployment alerts
-```
-
-#### Add Secrets
-```bash
-# Set secret via GitHub CLI
-gh secret set FIREBASE_SERVICE_ACCOUNT_DEV < firebase-key.json
-
-# Or via GitHub UI
-# 1. Go to Settings → Secrets and variables → Actions
-# 2. Click "New repository secret"
-# 3. Enter name and value
-# 4. Click "Add secret"
+# Google Play credentials
+PLAY_STORE_SERVICE_ACCOUNT
 ```
 
 ---
@@ -423,23 +376,17 @@ Closes #123, #124, #125"
 git push upstream v1.1.0
 ```
 
-#### 4. GitHub Actions Workflow
+#### 4. Release Workflow
 ```
-Tag v1.1.0 pushed
+Update version
   ↓
-Flutter Mobile CI/CD triggered
+Run tests and static analysis
   ↓
-Tests & Analysis
+Build Android & iOS locally
   ↓
-Build Android & iOS
+Package release artifacts
   ↓
-Create GitHub Release
-  ↓
-Upload artifacts
-  ↓
-Wait for manual approval
-  ↓
-Deploy to Play Store/App Store
+Upload to app stores or share binaries
 ```
 
 #### 5. Create Release Notes
@@ -504,16 +451,13 @@ firebase deploy --only hosting:campus-lost-found-dev
 
 #### Rollback Staging
 ```bash
-# Via GitHub Actions:
-# 1. Go to Actions tab
-# 2. Find previous successful deployment
-# 3. Click "Re-run" button
-
-# Or manual rollback:
+# Manual rollback process
 git checkout staging
 git reset --hard v1.0.0
 git push origin staging -f
-firebase deploy --only hosting:campus-lost-found-staging
+
+# Rebuild and redeploy the site manually
+flutter build web --release
 ```
 
 #### Rollback Production (Emergency Only!)
@@ -586,25 +530,9 @@ https://console.firebase.google.com/
 
 #### Slack Integration
 ```bash
-# Configure in .github/workflows/flutter-web.yml:
-
-- name: Notify Slack
-  uses: slackapi/slack-github-action@v1.24.0
-  with:
-    webhook-url: ${{ secrets.SLACK_WEBHOOK }}
-    payload: |
-      {
-        "text": "Deployment successful to ${{ matrix.environment }}",
-        "blocks": [
-          {
-            "type": "section",
-            "text": {
-              "type": "mrkdwn",
-              "text": "*Campus Lost & Found Deployed*\nVersion: ${{ github.ref_name }}\nEnvironment: ${{ matrix.environment }}"
-            }
-          }
-        ]
-      }
+# Optional integration for deployment notifications
+# Configure your preferred chat tool or provider manually
+# Example: send a message after a successful local release build
 ```
 
 ---
@@ -623,7 +551,7 @@ https://console.firebase.google.com/
 ### During Deployment
 - [ ] Build completes without errors
 - [ ] Artifacts generated correctly
-- [ ] Tests pass during CI/CD
+- [ ] Tests pass locally
 - [ ] No secrets in logs
 - [ ] Deployment proceeds
 
@@ -685,7 +613,7 @@ firebase deploy --only hosting:prod --debug
 
 - [Firebase Hosting Docs](https://firebase.google.com/docs/hosting)
 - [Flutter Deployment](https://flutter.dev/docs/deployment/web)
-- [GitHub Actions](https://docs.github.com/en/actions)
+- [Flutter Deployment](https://flutter.dev/docs/deployment)
 - [Semantic Versioning](https://semver.org/)
 
 ---

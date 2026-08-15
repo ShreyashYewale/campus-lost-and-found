@@ -118,7 +118,6 @@ git push origin hotfix/critical-issue
 - `test` - Add or update tests
 - `chore` - Dependencies, build config
 - `perf` - Performance improvement
-- `ci` - CI/CD changes
 - `style` - Code formatting (no logic change)
 
 ### Scope
@@ -128,7 +127,6 @@ Component or area affected:
 - `post` - Post item feature
 - `ui` - UI components
 - `api` - API integration
-- `ci` - CI/CD pipeline
 - `version` - Version/release related
 
 ### Subject
@@ -363,7 +361,7 @@ Add screenshots showing before/after
 - Reviewer checks functionality
 - At least 1 approval required
 - All conversations resolved
-- CI/CD checks passing
+- Local validation checks passing
 
 ### Merging
 - Squash and merge for feature branches
@@ -387,7 +385,7 @@ Add screenshots showing before/after
 ```bash
 # Automatic when merged to staging
 # Deployed to: https://staging.campuslostfound.com
-# Via: GitHub Actions flutter-web.yml
+# Via: local build scripts and manual deploy commands
 ```
 
 **Production (Manual)**
@@ -407,7 +405,7 @@ git commit -m "chore: bump version to 1.1.0"
 git tag -a v1.1.0 -m "Release 1.1.0: Feature description"
 git push upstream v1.1.0
 
-# 4. GitHub Actions creates release
+# 4. Build and package the release manually
 # 5. Manual promotion to production
 ```
 

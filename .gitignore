@@ -88,8 +88,7 @@ build/
 ehthumbs.db
 Thumbs.db
 
-# CI/CD
-.github/workflows/*.log
+# Local build logs
 ci-logs/
 
 # Temporary Files

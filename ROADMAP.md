@@ -23,7 +23,7 @@ Strategic plan for Campus Lost & Found development phases, priorities, and timel
 Phase 1: Foundation        ✅ 60% Complete (2-3 days)
 ├─ Flutter UI/UX
 ├─ Cross-platform structure
-├─ CI/CD setup
+├─ Local setup & tooling
 └─ Environments & versioning
 
 Phase 2: Backend & API     ⏳ Starting (3-5 days)
@@ -36,7 +36,7 @@ Phase 3: ML Integration    ⏳ Starting (2-3 days)
 ├─ Python Flask microservice
 ├─ Image matching algorithm
 ├─ Notification system
-└─ ML service CI/CD
+└─ ML service release checks
 
 Phase 4: Mobile Platforms  📋 Planned (2-3 days)
 ├─ Re-enable iOS & Android
@@ -71,7 +71,7 @@ Phase 6: Scale & Polish    📋 Planned (2-3 days)
 - [x] State management with Provider
 - [x] Service architecture (API, Auth, Config)
 - [x] Data models with serialization
-- [x] CI/CD workflow setup (GitHub Actions)
+- [x] Local workflow setup
 - [x] Environment configuration (dev/staging/prod)
 - [x] Semantic versioning setup
 - [x] Web build & localhost deployment
@@ -96,13 +96,12 @@ Phase 6: Scale & Polish    📋 Planned (2-3 days)
 - ✅ App compiles and runs without errors
 - ✅ All 5 screens render correctly
 - ✅ Navigation works smoothly
-- ✅ Web build deploys to Firebase
-- ✅ CI/CD pipelines automated
+- ✅ Web build runs locally
+- ✅ Local release workflow is documented
 - ✅ Documentation complete
 
 ### 📝 Key Files Created
 - `frontend/` - Complete Flutter codebase
-- `.github/workflows/` - CI/CD pipelines
 - `config/` - Environment files
 - `README.md` - Project documentation
 - `CONTRIBUTING.md` - Developer guide
@@ -152,7 +151,7 @@ backend/
 - **Auth:** Google OAuth2 + JWT
 - **Validation:** Joi/Yup
 - **Testing:** Jest + Supertest
-- **CI/CD:** GitHub Actions
+- **Automation:** Local build scripts and manual deployment tasks
 
 ### GraphQL Schema
 
@@ -746,7 +745,7 @@ Week 7+ (Oct+)
 - **Frontend Dev:** 1 (Flutter/Dart)
 - **Backend Dev:** 1 (Node.js/GraphQL)
 - **ML Engineer:** 1 (Python/TensorFlow)
-- **DevOps:** 0.5 (CI/CD/Infrastructure)
+- **DevOps:** 0.5 (Local tooling and release automation)
 - **QA:** 0.5 (Testing)
 
 ### Infrastructure
@@ -758,7 +757,7 @@ Week 7+ (Oct+)
 ### Services Required
 - Firebase (Hosting, Auth, Cloud Messaging)
 - Google Cloud (PostgreSQL, Cloud Run, Cloud Storage)
-- GitHub (Repository, Actions)
+- GitHub (Repository)
 - Sentry (Error tracking)
 - DataDog or New Relic (Monitoring)
 
@@ -773,8 +772,8 @@ Week 7+ (Oct+)
 
 ### Phase 1
 - ✅ App builds and runs without errors
-- ✅ Web deployment to Firebase successful
-- ✅ CI/CD pipelines automated
+- ✅ Web build is working locally
+- ✅ Local release workflow is documented
 
 ### Phase 2
 - Successful API calls from frontend

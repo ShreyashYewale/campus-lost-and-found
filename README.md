@@ -25,7 +25,7 @@ A centralized platform where:
 - **ML:** Python microservice for image matching
 - **Auth:** Google Sign-In
 - **Notifications:** Firebase Cloud Messaging
-- **Deployment:** Firebase Hosting (Web), App Store/Play Store (Mobile)
+- **Deployment:** Local builds and manual deployment to target hosts
 
 ---
 
@@ -33,10 +33,6 @@ A centralized platform where:
 
 ```
 campus-lost-and-found/
-├── .github/
-│   └── workflows/
-│       ├── flutter-web.yml          # Web CI/CD pipeline
-│       └── flutter-mobile.yml       # Mobile CI/CD pipeline
 ├── config/
 │   ├── .env.dev                    # Development environment
 │   ├── .env.staging                # Staging environment
@@ -82,7 +78,7 @@ The application supports three deployment environments:
 - **URL:** https://staging.campuslostfound.com
 - **API:** `https://staging-api.campuslostfound.com/graphql`
 - **Features:** Debug disabled, analytics enabled, ML enabled
-- **Deployment:** Automatic on push (GitHub Actions)
+- **Deployment:** Manual deployment from local build
 - **Audience:** QA team, stakeholder testing
 
 ### Production (`master` branch)
@@ -120,83 +116,63 @@ BUILD=2
 # 2. Update frontend/pubspec.yaml
 version: 1.1.0+2
 
-# 3. Commit & push
+# 3. Commit changes
 git add VERSION frontend/pubspec.yaml
 git commit -m "chore: bump version to 1.1.0"
 
 # 4. Tag release
 git tag -a v1.1.0 -m "Release version 1.1.0: New search filters"
 git push origin v1.1.0
-
-# 5. Trigger mobile builds automatically
 ```
 
 ---
 
-## 🚀 CI/CD Pipeline
+## 🚀 Local Deployment Workflow
 
-### GitHub Actions Workflows
+This project uses a simple local-first workflow for builds and releases.
 
-#### 1. **Flutter Web CI/CD** (`.github/workflows/flutter-web.yml`)
-Triggers on pushes/PRs to `develop`, `staging`, `master` branches
+### Manual deployment flow
+1. Work locally in your feature branch
+2. Run tests and analyzer locally
+3. Build the frontend for web or mobile
+4. Serve locally or deploy manually to your target environment
+5. Create a version tag when you are ready to release
 
-**Stages:**
-- ✅ **Analyze** - Flutter analyze, linting
-- ✅ **Test** - Run unit and widget tests
-- ✅ **Build** - Compile for web
-- 📤 **Deploy Dev** - Firebase to dev channel (from `develop`)
-- 📤 **Deploy Staging** - Firebase to staging channel (from `staging`)
-- 📤 **Deploy Production** - Firebase to prod (from `master`, requires approval)
-
-#### 2. **Flutter Mobile CI/CD** (`.github/workflows/flutter-mobile.yml`)
-Triggers on pushes to `master` and version tags
-
-**Stages:**
-- ✅ **Analyze & Test** - Code quality checks
-- 🤖 **Build Android** - APK + App Bundle
-- 🍎 **Build iOS** - iOS app archive
-- 📦 **Create Release** - GitHub Release with artifacts (on tags)
-- 📱 **Upload to Stores** - (Manual trigger to Play Store/App Store)
-
-### Branch Strategy
+### Local branch strategy
 ```
-master (v1.x.x tags)
-  ↑
-  └─ Pull Request (code review, tests pass, deploy approval)
-     ↓
-staging (continuous testing)
-  ↑
-  └─ Pull Request (from develop, auto-deploys)
-     ↓
-develop (continuous integration)
-  ↑
-  └─ Feature branches (feature/*, bugfix/*, refactor/*)
+main
+├─ feature/*
+├─ bugfix/*
+├─ hotfix/*
+└─ release/*
 ```
 
-### GitHub Secrets Required
-**Firebase Hosting:**
+### Local environment configuration
+**Development:**
 ```
-FIREBASE_SERVICE_ACCOUNT_DEV      # Dev project key
-FIREBASE_SERVICE_ACCOUNT_STAGING  # Staging project key
-FIREBASE_SERVICE_ACCOUNT_PROD     # Production project key (protected)
-```
-
-**Notifications:**
-```
-SLACK_WEBHOOK  # For deployment status updates
+API_BASE_URL=http://localhost:4000/graphql
+DEBUG_MODE=true
 ```
 
-**App Store (Optional):**
+**Staging:**
 ```
-APPLE_KEY_ID
-APPLE_ISSUER_ID
-APPLE_KEY_CONTENT
+API_BASE_URL=https://staging-api.campuslostfound.com/graphql
+DEBUG_MODE=false
 ```
 
-**Google Play (Optional):**
+**Production:**
 ```
-PLAY_STORE_SERVICE_ACCOUNT
+API_BASE_URL=https://api.campuslostfound.com/graphql
+DEBUG_MODE=false
 ```
+
+### Manual release checklist
+- Update the version file
+- Update the Flutter app version
+- Run `flutter test`
+- Run `flutter analyze`
+- Build the release bundle
+- Tag the release locally if needed
 
 ---
 
@@ -371,8 +347,8 @@ Closes #42
 
 - [Frontend Architecture](frontend/ARCHITECTURE.md) - Detailed design patterns
 - [Frontend README](frontend/README.md) - Setup guide
-- [GitHub Workflows](.github/workflows/) - CI/CD details
 - [Environment Setup](config/) - Configuration files
+- [Deployment Guide](DEPLOYMENT.md) - Local deployment workflow
 
 **Coming soon:**
 - Backend Setup Guide
@@ -425,9 +401,9 @@ MIT License - See [LICENSE](LICENSE) file
 **Assignment Goals:**
 - ✅ Build cross-platform app from single codebase
 - ✅ Implement responsive UI design
-- ✅ Set up CI/CD pipelines
+- ✅ Set up a structured local deployment workflow
 - ✅ Use semantic versioning
-- ✅ Deploy to multiple environments
+- ✅ Prepare for multiple environments
 - ⏳ Integrate ML capabilities
 - ⏳ Connect GraphQL backend
 
@@ -440,7 +416,7 @@ MIT License - See [LICENSE](LICENSE) file
 | Platforms | 3 (iOS, Android, Web) |
 | Dart Lines of Code | ~2,000+ |
 | Screens | 5 |
-| CI/CD Workflows | 2 |
+| Manual deployment workflows | 1 |
 | Environments | 3 |
 | Version Scheme | SemVer 2.0.0 |
 
