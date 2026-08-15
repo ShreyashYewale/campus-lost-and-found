@@ -1,5 +1,7 @@
+import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 class PostItemScreen extends StatefulWidget {
   const PostItemScreen({Key? key}) : super(key: key);
@@ -13,12 +15,12 @@ class _PostItemScreenState extends State<PostItemScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
-  
+
   String _itemType = 'lost';
   String _category = 'other';
   bool _isSubmitting = false;
 
-  final categories = ['Electronics', 'Accessories', 'Clothing', 'Documents', 'Bags', 'Keys', 'Other'];
+  final categories = ['electronics', 'id_cards', 'keys', 'bags', 'books', 'clothing', 'other'];
 
   @override
   void dispose() {
@@ -81,8 +83,8 @@ class _PostItemScreenState extends State<PostItemScreen> {
                   decoration: const InputDecoration(border: OutlineInputBorder()),
                   items: categories.map((cat) {
                     return DropdownMenuItem(
-                      value: cat.toLowerCase(),
-                      child: Text(cat),
+                      value: cat,
+                      child: Text(cat.replaceAll('_', ' ')),
                     );
                   }).toList(),
                   onChanged: (value) => setState(() => _category = value ?? 'other'),
@@ -130,13 +132,22 @@ class _PostItemScreenState extends State<PostItemScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      // TODO: Implement actual posting to backend
-      await Future.delayed(const Duration(seconds: 1));
+      final itemService = context.read<ItemService>();
+      final created = await itemService.createItem(
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        type: _itemType,
+        category: _category,
+        location: _locationController.text.trim(),
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item posted successfully!')),
+          SnackBar(
+            content: Text(created ? 'Item posted successfully!' : 'Unable to post item.'),
+          ),
         );
-        context.go('/');
+        if (created) context.go('/');
       }
     } catch (e) {
       if (mounted) {

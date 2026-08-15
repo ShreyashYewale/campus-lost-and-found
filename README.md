@@ -13,7 +13,7 @@ Automatic matching between lost and found items
 Claim an item, with approval from the person who posted it
 Notifications on a possible match or a new claim
 Mark items as resolved
-Google login for authentication
+Email and password authentication
 Tech Stack
 Layer	Technology	Notes
 Frontend	Flutter (Web + one mobile platform)	UI only — talks to the backend over GraphQL
@@ -39,7 +39,7 @@ Data Model
 
 Four lists, all related:
 
-User — name, email, googleId; owns items, claims, and notifications.
+User — name, email, password; owns items, claims, and notifications.
 Item — title, description, type (lost/found), category, location, photo, status (open/claimed/resolved). category and location are select fields, not free text — this is deliberate, because reliable automatic matching needs fixed values rather than arbitrary strings.
 Claim — links a User to an Item they want to claim, with a status (pending/approved/rejected).
 Notification — a message to a User about a match or claim event, with a read flag.

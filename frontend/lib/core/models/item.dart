@@ -1,14 +1,16 @@
 import 'package:intl/intl.dart';
 
-enum ItemStatus { found, lost, claimed, resolved }
+enum ItemType { lost, found }
+
+enum ItemStatus { open, claimed, resolved }
 
 enum ItemCategory {
   electronics,
-  accessories,
-  clothing,
-  documents,
-  bags,
+  idCards,
   keys,
+  bags,
+  books,
+  clothing,
   other,
 }
 
@@ -16,54 +18,55 @@ class Item {
   final String id;
   final String title;
   final String description;
-  final String photoUrl;
+  final String? photoUrl;
+  final ItemType type;
   final ItemCategory category;
-  final ItemStatus status;
-  final double latitude;
-  final double longitude;
   final String location;
-  final String userId;
-  final String userName;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final String? claimedBy;
-  final DateTime? claimedAt;
+  final ItemStatus status;
+  final DateTime? createdAt;
+  final String? postedById;
+  final String? postedByName;
 
   Item({
     required this.id,
     required this.title,
     required this.description,
-    required this.photoUrl,
+    this.photoUrl,
+    required this.type,
     required this.category,
-    required this.status,
-    required this.latitude,
-    required this.longitude,
     required this.location,
-    required this.userId,
-    required this.userName,
-    required this.createdAt,
-    required this.updatedAt,
-    this.claimedBy,
-    this.claimedAt,
+    required this.status,
+    this.createdAt,
+    this.postedById,
+    this.postedByName,
   });
 
   factory Item.fromJson(Map<String, dynamic> json) {
+    final rawType = (json['type'] ?? '').toString();
+    final rawCategory = (json['category'] ?? '').toString();
+    final rawStatus = (json['status'] ?? '').toString();
+
     return Item(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      photoUrl: json['photoUrl'],
-      category: ItemCategory.values.byName(json['category']),
-      status: ItemStatus.values.byName(json['status']),
-      latitude: json['latitude'],
-      longitude: json['longitude'],
-      location: json['location'],
-      userId: json['userId'],
-      userName: json['userName'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      claimedBy: json['claimedBy'],
-      claimedAt: json['claimedAt'] != null ? DateTime.parse(json['claimedAt']) : null,
+      id: json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      photoUrl: _readPhotoUrl(json['photo']),
+      type: ItemType.values.firstWhere(
+        (value) => value.name == rawType,
+        orElse: () => ItemType.lost,
+      ),
+      category: ItemCategory.values.firstWhere(
+        (value) => value.name == rawCategory,
+        orElse: () => ItemCategory.other,
+      ),
+      location: json['location']?.toString() ?? 'other',
+      status: ItemStatus.values.firstWhere(
+        (value) => value.name == rawStatus,
+        orElse: () => ItemStatus.open,
+      ),
+      createdAt: _parseDate(json['createdAt']),
+      postedById: _readRelationId(json['postedBy']),
+      postedByName: _readRelationName(json['postedBy']),
     );
   }
 
@@ -72,21 +75,77 @@ class Item {
       'id': id,
       'title': title,
       'description': description,
-      'photoUrl': photoUrl,
+      'type': type.name,
       'category': category.name,
-      'status': status.name,
-      'latitude': latitude,
-      'longitude': longitude,
       'location': location,
-      'userId': userId,
-      'userName': userName,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      'claimedBy': claimedBy,
-      'claimedAt': claimedAt?.toIso8601String(),
+      'status': status.name,
+      'createdAt': createdAt?.toIso8601String(),
+      'postedBy': {
+        'id': postedById,
+        'name': postedByName,
+      },
+      'photo': photoUrl != null ? {'url': photoUrl} : null,
     };
   }
 
-  String get formattedDate => DateFormat('MMM dd, yyyy').format(createdAt);
-  String get formattedTime => DateFormat('hh:mm a').format(createdAt);
+  static String? _readPhotoUrl(dynamic photo) {
+    if (photo is Map<String, dynamic>) {
+      final url = photo['url'];
+      if (url is String && url.isNotEmpty) return url;
+    }
+
+    if (photo is Map) {
+      final url = photo['url'];
+      if (url is String && url.isNotEmpty) return url;
+    }
+
+    return null;
+  }
+
+  static String? _readRelationId(dynamic relation) {
+    if (relation is Map<String, dynamic>) {
+      return relation['id']?.toString();
+    }
+    if (relation is Map) {
+      return relation['id']?.toString();
+    }
+    return null;
+  }
+
+  static String? _readRelationName(dynamic relation) {
+    if (relation is Map<String, dynamic>) {
+      final name = relation['name'];
+      if (name is String && name.isNotEmpty) return name;
+      final email = relation['email'];
+      if (email is String && email.isNotEmpty) return email;
+    }
+    if (relation is Map) {
+      final name = relation['name'];
+      if (name is String && name.isNotEmpty) return name;
+      final email = relation['email'];
+      if (email is String && email.isNotEmpty) return email;
+    }
+    return null;
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String get formattedDate => createdAt == null
+      ? ''
+      : DateFormat('MMM dd, yyyy').format(createdAt!);
+
+  String get formattedTime => createdAt == null
+      ? ''
+      : DateFormat('hh:mm a').format(createdAt!);
 }

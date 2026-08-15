@@ -1,41 +1,8 @@
+import 'package:campus_lost_found/core/models/item.dart';
+import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-
-// Dummy item data for demo
-final dummyItems = [
-  {
-    'id': '1',
-    'title': 'Blue Backpack',
-    'category': 'Bags',
-    'status': 'lost',
-    'location': 'Library Entrance',
-    'date': '2 days ago'
-  },
-  {
-    'id': '2',
-    'title': 'iPhone 14 Pro',
-    'category': 'Electronics',
-    'status': 'found',
-    'location': 'Cafeteria',
-    'date': '1 day ago'
-  },
-  {
-    'id': '3',
-    'title': 'ID Card',
-    'category': 'Documents',
-    'status': 'found',
-    'location': 'Student Center',
-    'date': '3 hours ago'
-  },
-  {
-    'id': '4',
-    'title': 'Black Jacket',
-    'category': 'Clothing',
-    'status': 'lost',
-    'location': 'Gym',
-    'date': '5 days ago'
-  },
-];
+import 'package:provider/provider.dart';
 
 class SearchItemsScreen extends StatefulWidget {
   const SearchItemsScreen({Key? key}) : super(key: key);
@@ -48,18 +15,44 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
   final _searchController = TextEditingController();
   String _selectedCategory = 'All';
   String _selectedStatus = 'All';
+  List<Item> _items = [];
+  bool _isLoading = true;
 
-  final categories = ['All', 'Electronics', 'Accessories', 'Clothing', 'Documents', 'Bags', 'Keys', 'Other'];
+  final categories = ['All', 'electronics', 'idCards', 'keys', 'bags', 'books', 'clothing', 'other'];
   final statuses = ['All', 'lost', 'found'];
 
-  List<Map<String, dynamic>> get filteredItems {
-    return dummyItems.where((item) {
-      final matchesSearch = item['title']
-          .toString()
-          .toLowerCase()
-          .contains(_searchController.text.toLowerCase());
-      final matchesCategory = _selectedCategory == 'All' || item['category'] == _selectedCategory;
-      final matchesStatus = _selectedStatus == 'All' || item['status'] == _selectedStatus;
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    final itemService = context.read<ItemService>();
+    try {
+      final items = await itemService.fetchItems();
+      if (mounted) {
+        setState(() {
+          _items = items;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  List<Item> get filteredItems {
+    final query = _searchController.text.toLowerCase();
+    return _items.where((item) {
+      final matchesSearch = query.isEmpty || item.title.toLowerCase().contains(query);
+      final selectedCategory = _selectedCategory == 'All' ? null : _selectedCategory;
+      final matchesCategory = selectedCategory == null || item.category.name == selectedCategory;
+      final selectedStatus = _selectedStatus == 'All' ? null : _selectedStatus;
+      final itemTypeName = item.type.name;
+      final matchesStatus = selectedStatus == null || itemTypeName == selectedStatus;
       return matchesSearch && matchesCategory && matchesStatus;
     }).toList();
   }
@@ -131,42 +124,45 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
             ),
           ),
           Expanded(
-            child: filteredItems.isEmpty
-                ? const Center(child: Text('No items found'))
-                : ListView.builder(
-                    itemCount: filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredItems[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        child: Card(
-                          child: ListTile(
-                            leading: Container(
-                              width: 60,
-                              height: 60,
-                              decoration: BoxDecoration(
-                                color: item['status'] == 'lost' ? Colors.red.shade100 : Colors.green.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  item['status'] == 'lost' ? '❌' : '✅',
-                                  style: const TextStyle(fontSize: 24),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : filteredItems.isEmpty
+                    ? const Center(child: Text('No items found'))
+                    : ListView.builder(
+                        itemCount: filteredItems.length,
+                        itemBuilder: (context, index) {
+                          final item = filteredItems[index];
+                          final statusLabel = item.type.name;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Card(
+                              child: ListTile(
+                                leading: Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    color: statusLabel == 'lost' ? Colors.red.shade100 : Colors.green.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      statusLabel == 'lost' ? '❌' : '✅',
+                                      style: const TextStyle(fontSize: 24),
+                                    ),
+                                  ),
                                 ),
+                                title: Text(item.title),
+                                subtitle: Text('${item.category.name} • ${item.location}'),
+                                trailing: Text(
+                                  item.formattedDate.isEmpty ? 'new' : item.formattedDate,
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                                onTap: () => context.push('/item/${item.id}'),
                               ),
                             ),
-                            title: Text(item['title']),
-                            subtitle: Text('${item['category']} • ${item['location']}'),
-                            trailing: Text(
-                              item['date'],
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                            onTap: () => context.push('/item/${item['id']}'),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

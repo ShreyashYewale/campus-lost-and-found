@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:campus_lost_found/core/services/auth_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -56,13 +58,43 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push('/login'),
-                    icon: const Icon(Icons.person),
-                    label: const Text('Sign In'),
-                  ),
+                Consumer<AuthService>(
+                  builder: (context, authService, child) {
+                    if (authService.isAuthenticated) {
+                      return Column(
+                        children: [
+                          Text(
+                            'Signed in as ${authService.userEmail ?? 'User'}',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                await authService.logout();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Logged out successfully')),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.logout),
+                              label: const Text('Logout'),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/login'),
+                        icon: const Icon(Icons.person),
+                        label: const Text('Sign In'),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

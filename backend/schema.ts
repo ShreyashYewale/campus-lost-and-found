@@ -2,7 +2,7 @@
 import { list } from '@keystone-6/core';
 import { allowAll } from '@keystone-6/core/access';
 import {
-  text, relationship, timestamp, select, image, checkbox
+  text, relationship, timestamp, select, image, checkbox, password
 } from '@keystone-6/core/fields';
 
 export const lists = {
@@ -11,7 +11,7 @@ export const lists = {
     fields: {
       name: text({ validation: { isRequired: true } }),
       email: text({ isIndexed: 'unique', validation: { isRequired: true } }),
-      googleId: text({ isIndexed: 'unique' }),
+      password: password(),
       items: relationship({ ref: 'Item.postedBy', many: true }),
       claims: relationship({ ref: 'Claim.claimant', many: true }),
       notifications: relationship({ ref: 'Notification.recipient', many: true }),
@@ -44,18 +44,7 @@ export const lists = {
         ],
         validation: { isRequired: true },
       }),
-      location: select({
-        options: [
-          { label: 'Library', value: 'library' },
-          { label: 'Canteen', value: 'canteen' },
-          { label: 'Hostel', value: 'hostel' },
-          { label: 'Academic Block', value: 'academic_block' },
-          { label: 'Sports Complex', value: 'sports' },
-          { label: 'Parking', value: 'parking' },
-          { label: 'Other', value: 'other' },
-        ],
-        validation: { isRequired: true },
-      }),
+      location: text({ validation: { isRequired: true } }),
       photo: image({ storage: 'local_images' }),
       status: select({
         options: [
