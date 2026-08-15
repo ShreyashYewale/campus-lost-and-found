@@ -2,10 +2,12 @@ import { config } from '@keystone-6/core';
 import { lists } from './schema';
 import 'dotenv/config';
 
+const databaseUrl = process.env.DATABASE_URL || 'file:./keystone.db';
+
 export default config({
   db: {
-    provider: 'postgresql',
-    url: 'process.env.DATABASE_URL',
+    provider: 'sqlite',
+    url: databaseUrl,
   },
   lists,
   storage: {
@@ -18,6 +20,9 @@ export default config({
     },
   },
   server: {
-    cors: { origin: ['http://localhost:3000', 'http://localhost:8080'], credentials: true },
+    cors: {
+      origin: ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:8081', 'http://127.0.0.1:8081'],
+      credentials: true,
+    },
   },
 });
