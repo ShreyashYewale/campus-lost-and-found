@@ -1,13 +1,26 @@
 // backend/schema.ts
 import { list } from '@keystone-6/core';
-import { allowAll } from '@keystone-6/core/access';
 import {
   text, relationship, timestamp, select, image, checkbox, password
 } from '@keystone-6/core/fields';
+import {
+  isLoggedIn,
+  isOwner,
+  isClaimant,
+  isNotificationRecipient,
+} from './access';
+import { findMatchingItems, notifyMatch } from './matching';
 
 export const lists = {
   User: list({
-    access: allowAll,
+    access: {
+      operation: {
+        query: () => true,
+        create: () => true,
+        update: ({ session, item }) => session?.itemId === item.id,
+        delete: ({ session, item }) => session?.itemId === item.id,
+      },
+    },
     fields: {
       name: text({ validation: { isRequired: true } }),
       email: text({ isIndexed: 'unique', validation: { isRequired: true } }),
@@ -20,7 +33,50 @@ export const lists = {
   }),
 
   Item: list({
-    access: allowAll,
+    access: {
+      operation: {
+        query: () => true,
+        create: isLoggedIn,
+        update: isOwner,
+        delete: isOwner,
+      },
+    },
+    hooks: {
+      afterOperation: async ({ operation, item, context }) => {
+        if (operation !== 'create' || !item) return;
+
+        const matches = await findMatchingItems(context, {
+          id: item.id,
+          title: item.title as string,
+          type: item.type as string,
+          category: item.category as string,
+          location: item.location as string,
+          postedById: item.postedById as string | null | undefined,
+        });
+
+        for (const match of matches) {
+          await notifyMatch(
+            context,
+            {
+              id: item.id,
+              title: item.title as string,
+              type: item.type as string,
+              category: item.category as string,
+              location: item.location as string,
+              postedById: item.postedById as string | null | undefined,
+            },
+            {
+              id: match.id,
+              title: match.title as string,
+              type: match.type as string,
+              category: match.category as string,
+              location: match.location as string,
+              postedById: match.postedById as string | null | undefined,
+            }
+          );
+        }
+      },
+    },
     fields: {
       title: text({ validation: { isRequired: true } }),
       description: text({ ui: { displayMode: 'textarea' } }),
@@ -62,7 +118,35 @@ export const lists = {
   }),
 
   Claim: list({
-    access: allowAll,
+    access: {
+      operation: {
+        query: isLoggedIn,
+        create: isLoggedIn,
+        update: isLoggedIn,
+        delete: isClaimant,
+      },
+    },
+    hooks: {
+      afterOperation: async ({ operation, item, context }) => {
+        if (operation !== 'create' || !item?.itemId) return;
+
+        const sudo = context.sudo();
+        const relatedItem = await sudo.db.Item.findOne({
+          where: { id: String(item.itemId) },
+        });
+
+        if (!relatedItem?.postedById) return;
+
+        await sudo.db.Notification.createOne({
+          data: {
+            recipient: { connect: { id: relatedItem.postedById } },
+            type: 'claim',
+            message: `Someone submitted a claim on your item "${relatedItem.title}".`,
+            relatedItem: { connect: { id: String(relatedItem.id) } },
+          },
+        });
+      },
+    },
     fields: {
       item: relationship({ ref: 'Item.claims', many: false }),
       claimant: relationship({ ref: 'User.claims', many: false }),
@@ -80,7 +164,17 @@ export const lists = {
   }),
 
   Notification: list({
-    access: allowAll,
+    access: {
+      operation: {
+        query: isLoggedIn,
+        create: () => false,
+        update: isNotificationRecipient,
+        delete: isNotificationRecipient,
+      },
+      filter: {
+        query: isNotificationRecipient,
+      },
+    },
     fields: {
       recipient: relationship({ ref: 'User.notifications', many: false }),
       type: select({

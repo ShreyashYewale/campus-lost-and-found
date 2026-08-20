@@ -10,21 +10,16 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final config = AppConfig.dev();
-
-  final apiService = ApiService(
-    baseUrl: config.apiBaseUrl,
-  );
-
+  final apiService = ApiService(baseUrl: config.apiBaseUrl);
   final authService = AuthService(apiService: apiService);
   final itemService = ItemService(apiService: apiService);
 
   runApp(
     MultiProvider(
       providers: [
-        Provider<ApiService>(create: (_) => apiService),
-        Provider<AuthService>(create: (_) => authService),
-        Provider<ItemService>(create: (_) => itemService),
-        ChangeNotifierProvider(create: (_) => AuthService(apiService: apiService)),
+        Provider<ApiService>.value(value: apiService),
+        ChangeNotifierProvider<AuthService>.value(value: authService),
+        Provider<ItemService>.value(value: itemService),
       ],
       child: const MyApp(),
     ),

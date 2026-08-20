@@ -11,7 +11,54 @@ enum ItemCategory {
   bags,
   books,
   clothing,
-  other,
+  other;
+
+  static ItemCategory fromApiValue(String value) {
+    switch (value) {
+      case 'electronics':
+        return ItemCategory.electronics;
+      case 'id_cards':
+        return ItemCategory.idCards;
+      case 'keys':
+        return ItemCategory.keys;
+      case 'bags':
+        return ItemCategory.bags;
+      case 'books':
+        return ItemCategory.books;
+      case 'clothing':
+        return ItemCategory.clothing;
+      default:
+        return ItemCategory.other;
+    }
+  }
+
+  String get apiValue {
+    switch (this) {
+      case ItemCategory.idCards:
+        return 'id_cards';
+      default:
+        return name;
+    }
+  }
+
+  String get displayName {
+    switch (this) {
+      case ItemCategory.electronics:
+        return 'Electronics';
+      case ItemCategory.idCards:
+        return 'ID / Cards';
+      case ItemCategory.keys:
+        return 'Keys';
+      case ItemCategory.bags:
+        return 'Bags';
+      case ItemCategory.books:
+        return 'Books / Stationery';
+      case ItemCategory.clothing:
+        return 'Clothing';
+      case ItemCategory.other:
+        return 'Other';
+    }
+  }
 }
 
 class Item {
@@ -55,11 +102,8 @@ class Item {
         (value) => value.name == rawType,
         orElse: () => ItemType.lost,
       ),
-      category: ItemCategory.values.firstWhere(
-        (value) => value.name == rawCategory,
-        orElse: () => ItemCategory.other,
-      ),
-      location: json['location']?.toString() ?? 'other',
+      category: ItemCategory.fromApiValue(rawCategory),
+      location: json['location']?.toString() ?? '',
       status: ItemStatus.values.firstWhere(
         (value) => value.name == rawStatus,
         orElse: () => ItemStatus.open,
@@ -76,7 +120,7 @@ class Item {
       'title': title,
       'description': description,
       'type': type.name,
-      'category': category.name,
+      'category': category.apiValue,
       'location': location,
       'status': status.name,
       'createdAt': createdAt?.toIso8601String(),

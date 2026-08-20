@@ -5,11 +5,31 @@ import 'package:logger/logger.dart';
 class ApiService {
   final String baseUrl;
   final Logger logger = Logger();
-  
+
   late final http.Client _client;
+  String? _sessionToken;
 
   ApiService({required this.baseUrl}) {
     _client = http.Client();
+  }
+
+  String? get sessionToken => _sessionToken;
+
+  void setSessionToken(String? token) {
+    _sessionToken = token;
+  }
+
+  Map<String, String> _headers() {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    if (_sessionToken != null && _sessionToken!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $_sessionToken';
+    }
+
+    return headers;
   }
 
   Future<Map<String, dynamic>> query(
@@ -18,21 +38,20 @@ class ApiService {
   }) async {
     try {
       logger.d('GraphQL Query: $query');
-      
-      final response = await _client.post(
-        Uri.parse(baseUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode({
-          'query': query,
-          'variables': variables ?? {},
-        }),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => throw Exception('Request timeout'),
-      );
+
+      final response = await _client
+          .post(
+            Uri.parse(baseUrl),
+            headers: _headers(),
+            body: jsonEncode({
+              'query': query,
+              'variables': variables ?? {},
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw Exception('Request timeout'),
+          );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;

@@ -4,7 +4,7 @@ import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
   final ApiService apiService;
-  
+
   String? _token;
   String? _userId;
   String? _userName;
@@ -28,6 +28,29 @@ class AuthService extends ChangeNotifier {
     _userName = prefs.getString('user_name');
     _userEmail = prefs.getString('user_email');
     _isAuthenticated = _token != null;
+    apiService.setSessionToken(_token);
+    notifyListeners();
+  }
+
+  Future<void> _persistSession({
+    required String token,
+    required String userId,
+    required String userName,
+    required String userEmail,
+  }) async {
+    _token = token;
+    _userId = userId;
+    _userName = userName;
+    _userEmail = userEmail;
+    _isAuthenticated = true;
+    apiService.setSessionToken(token);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', token);
+    await prefs.setString('user_id', userId);
+    await prefs.setString('user_name', userName);
+    await prefs.setString('user_email', userEmail);
+
     notifyListeners();
   }
 
@@ -55,21 +78,9 @@ class AuthService extends ChangeNotifier {
       final newUser = result['createUser'] as Map<String, dynamic>?;
       if (newUser == null) return false;
 
-      _userId = newUser['id'] as String;
-      _userName = newUser['name'] ?? name;
-      _userEmail = email;
-      _isAuthenticated = true;
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', 'local_session_$_userId');
-      await prefs.setString('user_id', _userId!);
-      await prefs.setString('user_name', _userName!);
-      await prefs.setString('user_email', _userEmail!);
-
-      notifyListeners();
-      return true;
+      return signIn(email, password);
     } catch (e) {
-      print('Sign up error: $e');
+      debugPrint('Sign up error: $e');
       return false;
     }
   }
@@ -105,27 +116,19 @@ class AuthService extends ChangeNotifier {
       final authResult = result['authenticateUserWithPassword'] as Map<String, dynamic>?;
       if (authResult == null) return false;
 
-      if (authResult['sessionToken'] != null) {
-        final item = authResult['item'] as Map<String, dynamic>;
-        _token = authResult['sessionToken'] as String;
-        _userId = item['id'] as String;
-        _userName = item['name'] ?? email.split('@')[0];
-        _userEmail = email;
-        _isAuthenticated = true;
+      final sessionToken = authResult['sessionToken'] as String?;
+      if (sessionToken == null) return false;
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('auth_token', _token!);
-        await prefs.setString('user_id', _userId!);
-        await prefs.setString('user_name', _userName!);
-        await prefs.setString('user_email', _userEmail!);
-
-        notifyListeners();
-        return true;
-      }
-
-      return false;
+      final item = authResult['item'] as Map<String, dynamic>;
+      await _persistSession(
+        token: sessionToken,
+        userId: item['id'] as String,
+        userName: (item['name'] as String?) ?? email.split('@')[0],
+        userEmail: email,
+      );
+      return true;
     } catch (e) {
-      print('Sign in error: $e');
+      debugPrint('Sign in error: $e');
       return false;
     }
   }
@@ -136,6 +139,7 @@ class AuthService extends ChangeNotifier {
     _userName = null;
     _userEmail = null;
     _isAuthenticated = false;
+    apiService.setSessionToken(null);
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');

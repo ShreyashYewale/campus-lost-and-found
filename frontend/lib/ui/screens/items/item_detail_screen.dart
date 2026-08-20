@@ -86,7 +86,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             Wrap(
                               spacing: 12,
                               children: [
-                                Chip(label: Text(_item!.category.name)),
+                                Chip(label: Text(_item!.category.displayName)),
                                 Chip(label: Text(_item!.status.name.toUpperCase())),
                               ],
                             ),
@@ -178,6 +178,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Please sign in to claim an item')),
           );
+          context.push('/login');
         }
         return;
       }

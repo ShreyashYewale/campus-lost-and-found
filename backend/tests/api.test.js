@@ -1,16 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-
-async function fetchGraphQL(query, variables = {}) {
-  const response = await fetch('http://localhost:3000/api/graphql', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  });
-
-  const body = await response.json();
-  return { response, body };
-}
+const { fetchGraphQL, createUserAndAuthenticate, createItem } = require('./helpers');
 
 test('GraphQL endpoint is available', async () => {
   const { response, body } = await fetchGraphQL('query { __typename }');
@@ -41,4 +31,9 @@ test('The backend exposes the User list and accepts a create mutation', async ()
   assert.ok(body.data?.createUser?.id);
   assert.equal(body.data.createUser.name, 'Test User');
   assert.equal(body.data.createUser.email, email);
+});
+
+test('Authenticated users receive a session token', async () => {
+  const { sessionToken } = await createUserAndAuthenticate('Auth User', 'auth_user');
+  assert.ok(sessionToken);
 });

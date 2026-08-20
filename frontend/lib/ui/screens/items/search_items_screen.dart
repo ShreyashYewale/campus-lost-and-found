@@ -18,7 +18,7 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
   List<Item> _items = [];
   bool _isLoading = true;
 
-  final categories = ['All', 'electronics', 'idCards', 'keys', 'bags', 'books', 'clothing', 'other'];
+  final categories = ['All', 'electronics', 'id_cards', 'keys', 'bags', 'books', 'clothing', 'other'];
   final statuses = ['All', 'lost', 'found'];
 
   @override
@@ -49,7 +49,7 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
     return _items.where((item) {
       final matchesSearch = query.isEmpty || item.title.toLowerCase().contains(query);
       final selectedCategory = _selectedCategory == 'All' ? null : _selectedCategory;
-      final matchesCategory = selectedCategory == null || item.category.name == selectedCategory;
+      final matchesCategory = selectedCategory == null || item.category.apiValue == selectedCategory;
       final selectedStatus = _selectedStatus == 'All' ? null : _selectedStatus;
       final itemTypeName = item.type.name;
       final matchesStatus = selectedStatus == null || itemTypeName == selectedStatus;
@@ -92,7 +92,7 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: FilterChip(
-                            label: Text(cat),
+                            label: Text(cat == 'All' ? cat : cat.replaceAll('_', ' ')),
                             selected: isSelected,
                             onSelected: (_) => setState(() => _selectedCategory = cat),
                           ),
@@ -152,7 +152,7 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
                                   ),
                                 ),
                                 title: Text(item.title),
-                                subtitle: Text('${item.category.name} • ${item.location}'),
+                                subtitle: Text('${item.category.displayName} • ${item.location}'),
                                 trailing: Text(
                                   item.formattedDate.isEmpty ? 'new' : item.formattedDate,
                                   style: const TextStyle(fontSize: 12, color: Colors.grey),

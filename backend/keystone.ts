@@ -5,10 +5,11 @@ import path from 'path';
 import 'dotenv/config';
 
 const databaseUrl = process.env.DATABASE_URL || 'file:./keystone.db';
+const dbProvider = databaseUrl.startsWith('postgres') ? 'postgresql' : 'sqlite';
 
 export default withAuth(config({
   db: {
-    provider: 'sqlite',
+    provider: dbProvider,
     url: databaseUrl,
   },
   lists,
