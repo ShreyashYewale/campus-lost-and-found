@@ -49,8 +49,8 @@ export default withAuth(config({
       ],
       methods: ['GET', 'POST', 'OPTIONS'],
     },
-  },
-  extendExpressApp: (app, commonContext) => {
-    registerItemPhotoRoute(app, commonContext);
+    extendExpressApp: (app, commonContext) => {
+      registerItemPhotoRoute(app, commonContext);
+    },
   },
 }));
