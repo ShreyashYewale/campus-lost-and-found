@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
 import 'package:logger/logger.dart';
 
@@ -77,6 +78,14 @@ class ApiService {
     return query(mutation, variables: variables);
   }
 
+  MediaType _imageMediaType(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return MediaType('image', 'png');
+    if (lower.endsWith('.gif')) return MediaType('image', 'gif');
+    if (lower.endsWith('.webp')) return MediaType('image', 'webp');
+    return MediaType('image', 'jpeg');
+  }
+
   Future<Map<String, dynamic>> uploadMutation(
     String mutation, {
     required Map<String, dynamic> variables,
@@ -86,6 +95,9 @@ class ApiService {
   }) async {
     try {
       final request = http.MultipartRequest('POST', Uri.parse(baseUrl));
+      request.headers['Accept'] = 'application/json';
+      // Required by Apollo Server CSRF protection for multipart uploads.
+      request.headers['Apollo-Require-Preflight'] = 'true';
       if (_sessionToken != null && _sessionToken!.isNotEmpty) {
         request.headers['Authorization'] = 'Bearer $_sessionToken';
       }
@@ -101,7 +113,12 @@ class ApiService {
         '0': ['variables.$fileVariableKey'],
       });
       request.files.add(
-        http.MultipartFile.fromBytes('0', fileBytes, filename: filename),
+        http.MultipartFile.fromBytes(
+          '0',
+          fileBytes,
+          filename: filename,
+          contentType: _imageMediaType(filename),
+        ),
       );
 
       final streamed = await request.send().timeout(
@@ -120,7 +137,11 @@ class ApiService {
       }
 
       logger.e('Upload HTTP Error: ${response.statusCode} ${response.body}');
-      throw Exception('HTTP ${response.statusCode}');
+      throw Exception(
+        response.body.isNotEmpty
+            ? 'HTTP ${response.statusCode}: ${response.body}'
+            : 'HTTP ${response.statusCode}',
+      );
     } catch (e) {
       logger.e('Upload Error: $e');
       rethrow;
