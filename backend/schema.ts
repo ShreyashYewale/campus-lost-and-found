@@ -8,6 +8,7 @@ import {
   isOwner,
   isClaimant,
   isNotificationRecipient,
+  canUpdateClaim,
 } from './access';
 import { findMatchingItems, notifyMatch } from './matching';
 
@@ -122,29 +123,62 @@ export const lists = {
       operation: {
         query: isLoggedIn,
         create: isLoggedIn,
-        update: isLoggedIn,
+        update: canUpdateClaim,
         delete: isClaimant,
       },
     },
     hooks: {
-      afterOperation: async ({ operation, item, context }) => {
-        if (operation !== 'create' || !item?.itemId) return;
+      afterOperation: async ({ operation, item, context, originalItem }) => {
+        if (operation === 'create' && item?.itemId) {
+          const sudo = context.sudo();
+          const relatedItem = await sudo.db.Item.findOne({
+            where: { id: String(item.itemId) },
+          });
+
+          if (!relatedItem?.postedById) return;
+
+          await sudo.db.Notification.createOne({
+            data: {
+              recipient: { connect: { id: relatedItem.postedById } },
+              type: 'claim',
+              message: `Someone submitted a claim on your item "${relatedItem.title}".`,
+              relatedItem: { connect: { id: String(relatedItem.id) } },
+            },
+          });
+          return;
+        }
+
+        if (operation !== 'update' || !item?.itemId || !item.claimantId) return;
+
+        const nextStatus = item.status as string;
+        const previousStatus = originalItem?.status as string | undefined;
+        if (nextStatus === previousStatus) return;
+        if (nextStatus !== 'approved' && nextStatus !== 'rejected') return;
 
         const sudo = context.sudo();
         const relatedItem = await sudo.db.Item.findOne({
           where: { id: String(item.itemId) },
         });
-
-        if (!relatedItem?.postedById) return;
+        if (!relatedItem) return;
 
         await sudo.db.Notification.createOne({
           data: {
-            recipient: { connect: { id: relatedItem.postedById } },
-            type: 'claim',
-            message: `Someone submitted a claim on your item "${relatedItem.title}".`,
+            recipient: { connect: { id: String(item.claimantId) } },
+            type: nextStatus === 'approved' ? 'claim_approved' : 'claim_rejected',
+            message:
+              nextStatus === 'approved'
+                ? `Your claim on "${relatedItem.title}" was approved.`
+                : `Your claim on "${relatedItem.title}" was rejected.`,
             relatedItem: { connect: { id: String(relatedItem.id) } },
           },
         });
+
+        if (nextStatus === 'approved') {
+          await sudo.db.Item.updateOne({
+            where: { id: String(relatedItem.id) },
+            data: { status: 'claimed' },
+          });
+        }
       },
     },
     fields: {

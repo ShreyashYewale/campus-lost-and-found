@@ -1,5 +1,7 @@
+import 'package:campus_lost_found/core/models/claim.dart';
 import 'package:campus_lost_found/core/models/item.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
+import 'package:campus_lost_found/core/services/claim_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,7 +19,9 @@ class ItemDetailScreen extends StatefulWidget {
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   bool _isClaiming = false;
   bool _isLoading = true;
+  bool _isUpdatingClaim = false;
   Item? _item;
+  List<Claim> _claims = [];
 
   @override
   void initState() {
@@ -25,13 +29,31 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     _loadItem();
   }
 
+  bool get _isOwner {
+    final authService = context.read<AuthService>();
+    return _item?.postedById != null && authService.userId == _item!.postedById;
+  }
+
+  bool get _canClaim {
+    if (_item == null) return false;
+    if (_item!.status != ItemStatus.open) return false;
+    if (_isOwner) return false;
+    return true;
+  }
+
   Future<void> _loadItem() async {
     final itemService = context.read<ItemService>();
+    final claimService = context.read<ClaimService>();
     try {
       final item = await itemService.fetchItemById(widget.itemId);
+      List<Claim> claims = const [];
+      if (item != null) {
+        claims = await claimService.fetchClaimsForItem(item.id);
+      }
       if (mounted) {
         setState(() {
           _item = item;
+          _claims = claims;
           _isLoading = false;
         });
       }
@@ -40,6 +62,103 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<void> _handleClaimDecision(Claim claim, String status) async {
+    setState(() => _isUpdatingClaim = true);
+    try {
+      final claimService = context.read<ClaimService>();
+      final success = await claimService.updateClaimStatus(
+        claimId: claim.id,
+        status: status,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Claim ${status == 'approved' ? 'approved' : 'rejected'}.'
+                  : 'Unable to update claim.',
+            ),
+          ),
+        );
+        if (success) await _loadItem();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUpdatingClaim = false);
+    }
+  }
+
+  Widget _buildClaimsSection() {
+    if (!_isOwner) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        const Text('Claims', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        if (_claims.isEmpty)
+          const Text('No claims submitted yet.')
+        else
+          ..._claims.map((claim) {
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      claim.claimantName ?? 'Unknown claimant',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    if (claim.message.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(claim.message),
+                    ],
+                    const SizedBox(height: 8),
+                    Chip(label: Text(claim.status.name.toUpperCase())),
+                    if (claim.status == ClaimStatus.pending) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: _isUpdatingClaim
+                                  ? null
+                                  : () => _handleClaimDecision(claim, 'approved'),
+                              icon: const Icon(Icons.check),
+                              label: const Text('Approve'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _isUpdatingClaim
+                                  ? null
+                                  : () => _handleClaimDecision(claim, 'rejected'),
+                              icon: const Icon(Icons.close),
+                              label: const Text('Reject'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
   }
 
   @override
@@ -68,7 +187,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             : Colors.green.shade100,
                         child: Center(
                           child: Text(
-                            _item!.type == ItemType.lost ? '❌ LOST' : '✅ FOUND',
+                            _item!.type == ItemType.lost ? 'LOST' : 'FOUND',
                             style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -137,25 +256,32 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                                 ],
                               ),
                             ),
+                            _buildClaimsSection(),
                             const SizedBox(height: 32),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: _isClaiming ? null : _handleClaim,
-                                icon: const Icon(Icons.check_circle),
-                                label: _isClaiming ? const Text('Processing...') : const Text('Claim This Item'),
-                                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                            if (_canClaim)
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _isClaiming ? null : _handleClaim,
+                                  icon: const Icon(Icons.check_circle),
+                                  label: _isClaiming
+                                      ? const Text('Processing...')
+                                      : const Text('Claim This Item'),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                  ),
+                                ),
+                              )
+                            else if (_isOwner)
+                              const Text(
+                                'You posted this item. Review claims above.',
+                                style: TextStyle(color: Colors.grey),
+                              )
+                            else if (_item!.status != ItemStatus.open)
+                              Text(
+                                'This item is ${_item!.status.name}.',
+                                style: const TextStyle(color: Colors.grey),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.mail),
-                                label: const Text('Contact Poster'),
-                              ),
-                            ),
                             const SizedBox(height: 24),
                           ],
                         ),
