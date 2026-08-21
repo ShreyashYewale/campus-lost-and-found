@@ -1,9 +1,12 @@
+import 'package:campus_lost_found/config/app_config.dart';
+import 'package:campus_lost_found/core/utils/email_validator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 
 class AuthService extends ChangeNotifier {
   final ApiService apiService;
+  final List<String> allowedEmailDomains;
 
   String? _token;
   String? _userId;
@@ -11,7 +14,10 @@ class AuthService extends ChangeNotifier {
   String? _userEmail;
   bool _isAuthenticated = false;
 
-  AuthService({required this.apiService}) {
+  AuthService({
+    required this.apiService,
+    List<String>? allowedEmailDomains,
+  }) : allowedEmailDomains = allowedEmailDomains ?? AppConfig.dev().allowedEmailDomains {
     _initializeAuth();
   }
 
@@ -55,6 +61,15 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> signUp(String name, String email, String password) async {
+    final emailError = EmailValidator.validationMessage(
+      email,
+      allowedDomains: allowedEmailDomains,
+    );
+    if (emailError != null) {
+      debugPrint('Sign up error: $emailError');
+      return false;
+    }
+
     try {
       final mutation = r'''
         mutation CreateUser($name: String!, $email: String!, $password: String!) {

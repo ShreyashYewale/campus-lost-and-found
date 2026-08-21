@@ -21,6 +21,20 @@ export const lists = {
         delete: ({ session, item }) => session?.itemId === item.id,
       },
     },
+    hooks: {
+      validateInput: ({ resolvedData, addValidationError }) => {
+        const email = resolvedData.email as string | undefined;
+        if (!email) return;
+
+        const normalized = email.trim().toLowerCase();
+        const allowedDomains = ['campus.edu'];
+        const domain = normalized.split('@')[1];
+
+        if (!domain || !allowedDomains.includes(domain)) {
+          addValidationError('Only campus.edu email addresses are allowed.');
+        }
+      },
+    },
     fields: {
       name: text({ validation: { isRequired: true } }),
       email: text({ isIndexed: 'unique', validation: { isRequired: true } }),

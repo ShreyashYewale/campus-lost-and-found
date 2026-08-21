@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:campus_lost_found/config/app_config.dart';
+import 'package:campus_lost_found/core/utils/email_validator.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 8),
                   Text(
                     _isSignUp
-                        ? 'Join Campus Lost & Found'
+                        ? 'Join Campus Lost & Found with your @campus.edu email'
                         : 'Post and claim items on campus',
                     style: const TextStyle(fontSize: 14, color: Colors.grey),
                     textAlign: TextAlign.center,
@@ -87,6 +89,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter an email';
+                      }
+                      if (_isSignUp) {
+                        return EmailValidator.validationMessage(
+                          value,
+                          allowedDomains: AppConfig.dev().allowedEmailDomains,
+                        );
                       }
                       if (!value.contains('@')) {
                         return 'Please enter a valid email';
@@ -194,7 +202,13 @@ class _LoginScreenState extends State<LoginScreen> {
           context.go('/');
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(_isSignUp ? 'Sign up failed. Please try again.' : 'Invalid email or password.')),
+            SnackBar(
+              content: Text(
+                _isSignUp
+                    ? 'Sign up failed. Use a @campus.edu email or try again.'
+                    : 'Invalid email or password.',
+              ),
+            ),
           );
         }
       }

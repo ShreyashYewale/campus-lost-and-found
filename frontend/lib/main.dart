@@ -11,7 +11,10 @@ Future<void> main() async {
 
   final config = AppConfig.dev();
   final apiService = ApiService(baseUrl: config.apiBaseUrl);
-  final authService = AuthService(apiService: apiService);
+  final authService = AuthService(
+    apiService: apiService,
+    allowedEmailDomains: config.allowedEmailDomains,
+  );
   final itemService = ItemService(apiService: apiService);
 
   runApp(

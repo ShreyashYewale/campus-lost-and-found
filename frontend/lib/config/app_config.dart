@@ -4,11 +4,13 @@ class AppConfig {
   final Environment environment;
   final String apiBaseUrl;
   final bool debugLogging;
+  final List<String> allowedEmailDomains;
 
   AppConfig({
     required this.environment,
     required this.apiBaseUrl,
     this.debugLogging = false,
+    this.allowedEmailDomains = const ['campus.edu'],
   });
 
   factory AppConfig.dev() {
@@ -16,6 +18,7 @@ class AppConfig {
       environment: Environment.development,
       apiBaseUrl: 'http://localhost:3000/api/graphql',
       debugLogging: true,
+      allowedEmailDomains: const ['campus.edu'],
     );
   }
 
@@ -24,6 +27,7 @@ class AppConfig {
       environment: Environment.production,
       apiBaseUrl: 'https://api.campuslostfound.com/api/graphql',
       debugLogging: false,
+      allowedEmailDomains: const ['campus.edu'],
     );
   }
 
