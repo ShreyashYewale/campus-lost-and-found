@@ -1,7 +1,6 @@
 import fs from 'fs';
 import multer from 'multer';
 import os from 'os';
-import { Upload } from 'graphql-upload';
 
 const upload = multer({
   dest: os.tmpdir(),
@@ -19,7 +18,7 @@ type CommonContext = {
         findOne: (args: { where: { id: string } }) => Promise<{ postedById?: string | null } | null>;
         updateOne: (args: {
           where: { id: string };
-          data: { photo: { upload: Upload } };
+          data: { photo: { upload: unknown } };
         }) => Promise<unknown>;
       };
     };
@@ -55,6 +54,8 @@ export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
         return;
       }
 
+      // graphql-upload v15+ is ESM-only; import the Upload class from its subpath.
+      const { default: Upload } = await import('graphql-upload/Upload.mjs');
       const fileUpload = new Upload();
       fileUpload.resolve({
         createReadStream: () => fs.createReadStream(tempPath!),
