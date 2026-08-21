@@ -27,6 +27,13 @@ class AppConfig {
     );
   }
 
+  String get apiOrigin {
+    if (apiBaseUrl.endsWith('/api/graphql')) {
+      return apiBaseUrl.substring(0, apiBaseUrl.length - '/api/graphql'.length);
+    }
+    return apiBaseUrl;
+  }
+
   bool get isDevelopment => environment == Environment.development;
   bool get isProduction => environment == Environment.production;
 }

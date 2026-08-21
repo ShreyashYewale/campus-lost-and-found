@@ -73,6 +73,8 @@ class ItemService {
     required String location,
     required String postedById,
     String status = 'open',
+    List<int>? photoBytes,
+    String? photoFilename,
   }) async {
     const mutation = r'''
       mutation CreateItem(
@@ -99,7 +101,7 @@ class ItemService {
       }
     ''';
 
-    final result = await apiService.mutation(mutation, variables: {
+    final variables = {
       'title': title,
       'description': description,
       'type': type,
@@ -107,9 +109,36 @@ class ItemService {
       'location': location,
       'status': status,
       'postedBy': {'connect': {'id': postedById}},
-    });
+    };
 
-    return result.containsKey('createItem');
+    final createResult = await apiService.mutation(mutation, variables: variables);
+    final createdItem = createResult['createItem'] as Map<String, dynamic>?;
+    if (createdItem == null) return false;
+
+    if (photoBytes == null || photoBytes.isEmpty) {
+      return true;
+    }
+
+    final itemId = createdItem['id']?.toString();
+    if (itemId == null || itemId.isEmpty) return false;
+
+    return uploadItemPhoto(
+      itemId: itemId,
+      photoBytes: photoBytes,
+      photoFilename: photoFilename ?? 'photo.jpg',
+    );
+  }
+
+  Future<bool> uploadItemPhoto({
+    required String itemId,
+    required List<int> photoBytes,
+    required String photoFilename,
+  }) async {
+    return apiService.uploadItemPhoto(
+      itemId: itemId,
+      fileBytes: photoBytes,
+      filename: photoFilename,
+    );
   }
 
   Future<bool> createClaim({

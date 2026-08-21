@@ -1,16 +1,29 @@
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
 import 'package:logger/logger.dart';
 
 class ApiService {
   final String baseUrl;
+  final String apiOrigin;
   final Logger logger = Logger();
 
   late final http.Client _client;
   String? _sessionToken;
 
-  ApiService({required this.baseUrl}) {
+  ApiService({
+    required this.baseUrl,
+    String? apiOrigin,
+  }) : apiOrigin = apiOrigin ?? _deriveOrigin(baseUrl) {
     _client = http.Client();
+  }
+
+  static String _deriveOrigin(String graphqlUrl) {
+    const suffix = '/api/graphql';
+    if (graphqlUrl.endsWith(suffix)) {
+      return graphqlUrl.substring(0, graphqlUrl.length - suffix.length);
+    }
+    return graphqlUrl;
   }
 
   String? get sessionToken => _sessionToken;
@@ -75,6 +88,126 @@ class ApiService {
     Map<String, dynamic>? variables,
   }) async {
     return query(mutation, variables: variables);
+  }
+
+  MediaType _imageMediaType(String filename) {
+    final lower = filename.toLowerCase();
+    if (lower.endsWith('.png')) return MediaType('image', 'png');
+    if (lower.endsWith('.gif')) return MediaType('image', 'gif');
+    if (lower.endsWith('.webp')) return MediaType('image', 'webp');
+    return MediaType('image', 'jpeg');
+  }
+
+  Future<bool> uploadItemPhoto({
+    required String itemId,
+    required List<int> fileBytes,
+    required String filename,
+  }) async {
+    if (_sessionToken == null || _sessionToken!.isEmpty) {
+      throw Exception('Not signed in. Please sign in before uploading a photo.');
+    }
+
+    try {
+      final mediaType = _imageMediaType(filename);
+      final response = await _client
+          .post(
+            Uri.parse('$apiOrigin/rest/items/$itemId/photo'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $_sessionToken',
+            },
+            body: jsonEncode({
+              'imageBase64': base64Encode(fileBytes),
+              'filename': filename,
+              'mimetype': '${mediaType.type}/${mediaType.subtype}',
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () => throw Exception('Upload timeout'),
+          );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return true;
+      }
+
+      logger.e('Photo upload HTTP Error: ${response.statusCode} ${response.body}');
+      throw Exception(
+        response.body.isNotEmpty
+            ? 'HTTP ${response.statusCode}: ${response.body}'
+            : 'HTTP ${response.statusCode}',
+      );
+    } catch (e) {
+      logger.e('Photo upload error: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> uploadMutation(
+    String mutation, {
+    required Map<String, dynamic> variables,
+    required String fileVariableKey,
+    required List<int> fileBytes,
+    required String filename,
+  }) async {
+    if (_sessionToken == null || _sessionToken!.isEmpty) {
+      throw Exception('Not signed in. Please sign in before uploading a photo.');
+    }
+
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse(baseUrl));
+      request.headers['Accept'] = 'application/json';
+      // Required by Apollo Server CSRF protection for multipart uploads.
+      request.headers['Apollo-Require-Preflight'] = 'true';
+      if (_sessionToken != null && _sessionToken!.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $_sessionToken';
+      }
+
+      final uploadVariables = Map<String, dynamic>.from(variables);
+      uploadVariables[fileVariableKey] = null;
+
+      request.fields['operations'] = jsonEncode({
+        'query': mutation,
+        'variables': uploadVariables,
+      });
+      request.fields['map'] = jsonEncode({
+        '0': ['variables.$fileVariableKey'],
+      });
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          '0',
+          fileBytes,
+          filename: filename,
+          contentType: _imageMediaType(filename),
+        ),
+      );
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw Exception('Upload timeout'),
+      );
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (data.containsKey('errors')) {
+          logger.e('GraphQL Upload Error: ${data['errors']}');
+          throw Exception(data['errors'].toString());
+        }
+        return data['data'] ?? {};
+      }
+
+      logger.e('Upload HTTP Error: ${response.statusCode} ${response.body}');
+      throw Exception(
+        response.body.isNotEmpty
+            ? 'HTTP ${response.statusCode}: ${response.body}'
+            : 'HTTP ${response.statusCode}',
+      );
+    } catch (e) {
+      logger.e('Upload Error: $e');
+      rethrow;
+    }
   }
 
   void dispose() {

@@ -57,6 +57,23 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
     }).toList();
   }
 
+  Widget _listThumbnail(String statusLabel) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: statusLabel == 'lost' ? Colors.red.shade100 : Colors.green.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: Text(
+          statusLabel == 'lost' ? 'L' : 'F',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -137,19 +154,17 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             child: Card(
                               child: ListTile(
-                                leading: Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: statusLabel == 'lost' ? Colors.red.shade100 : Colors.green.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      statusLabel == 'lost' ? '❌' : '✅',
-                                      style: const TextStyle(fontSize: 24),
-                                    ),
-                                  ),
+                                leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: item.photoUrl != null
+                                      ? Image.network(
+                                          item.photoUrl!,
+                                          width: 60,
+                                          height: 60,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => _listThumbnail(statusLabel),
+                                        )
+                                      : _listThumbnail(statusLabel),
                                 ),
                                 title: Text(item.title),
                                 subtitle: Text('${item.category.displayName} • ${item.location}'),

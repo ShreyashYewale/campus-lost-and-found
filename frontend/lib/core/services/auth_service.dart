@@ -10,10 +10,13 @@ class AuthService extends ChangeNotifier {
   String? _userName;
   String? _userEmail;
   bool _isAuthenticated = false;
+  Future<void>? _initFuture;
 
   AuthService({required this.apiService}) {
-    _initializeAuth();
+    _initFuture = _initializeAuth();
   }
+
+  Future<void> ensureInitialized() => _initFuture ?? _initializeAuth();
 
   bool get isAuthenticated => _isAuthenticated;
   String? get token => _token;

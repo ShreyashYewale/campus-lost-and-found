@@ -13,6 +13,8 @@
     "@keystone-6/core": "^6.0.0",
     "@keystone-6/fields-document": "^9.0.0",
     "dotenv": "^17.4.2",
+    "express": "^4.21.0",
+    "image-size": "^1.1.1",
     "typescript": "^5.5.0"
   }
 }
