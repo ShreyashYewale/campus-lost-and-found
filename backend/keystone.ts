@@ -30,7 +30,10 @@ export default withAuth(config({
         origin: string | undefined,
         callback: (err: Error | null, allow?: boolean) => void,
       ) => {
-        if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        if (
+          !origin ||
+          /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/.test(origin)
+        ) {
           callback(null, true);
           return;
         }
