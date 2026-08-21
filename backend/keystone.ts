@@ -25,7 +25,17 @@ export default withAuth(config({
   },
   server: {
     cors: {
-      origin: ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:8081', 'http://localhost:127.0.0.1:8081'],
+      // Flutter web uses a random localhost port unless --web-port is set.
+      origin: (
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void,
+      ) => {
+        if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error(`Origin not allowed by CORS: ${origin}`));
+      },
       credentials: true,
     },
   },
