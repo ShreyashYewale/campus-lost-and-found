@@ -76,6 +76,58 @@ class ItemService {
     List<int>? photoBytes,
     String? photoFilename,
   }) async {
+    if (photoBytes != null && photoBytes.isNotEmpty) {
+      const mutationWithPhoto = r'''
+        mutation CreateItem(
+          $title: String!,
+          $description: String!,
+          $type: String!,
+          $category: String!,
+          $location: String!,
+          $status: String!,
+          $postedBy: UserRelateToOneForCreateInput!,
+          $photo: Upload!
+        ) {
+          createItem(data: {
+            title: $title,
+            description: $description,
+            type: $type,
+            category: $category,
+            location: $location,
+            status: $status,
+            postedBy: $postedBy,
+            photo: { upload: $photo }
+          }) {
+            id
+            title
+            photo {
+              url
+            }
+          }
+        }
+      ''';
+
+      final variables = {
+        'title': title,
+        'description': description,
+        'type': type,
+        'category': category,
+        'location': location,
+        'status': status,
+        'postedBy': {'connect': {'id': postedById}},
+      };
+
+      final result = await apiService.uploadMutation(
+        mutationWithPhoto,
+        variables: variables,
+        fileVariableKey: 'photo',
+        fileBytes: photoBytes,
+        filename: photoFilename ?? 'photo.jpg',
+      );
+
+      return result.containsKey('createItem');
+    }
+
     const mutation = r'''
       mutation CreateItem(
         $title: String!,
@@ -84,8 +136,7 @@ class ItemService {
         $category: String!,
         $location: String!,
         $status: String!,
-        $postedBy: UserRelateToOneForCreateInput!,
-        $photo: Upload
+        $postedBy: UserRelateToOneForCreateInput!
       ) {
         createItem(data: {
           title: $title,
@@ -94,14 +145,10 @@ class ItemService {
           category: $category,
           location: $location,
           status: $status,
-          postedBy: $postedBy,
-          photo: { upload: $photo }
+          postedBy: $postedBy
         }) {
           id
           title
-          photo {
-            url
-          }
         }
       }
     ''';
@@ -116,18 +163,7 @@ class ItemService {
       'postedBy': {'connect': {'id': postedById}},
     };
 
-    final Map<String, dynamic> result;
-    if (photoBytes != null && photoBytes.isNotEmpty) {
-      result = await apiService.uploadMutation(
-        mutation,
-        variables: variables,
-        fileVariableKey: 'photo',
-        fileBytes: photoBytes,
-        filename: photoFilename ?? 'photo.jpg',
-      );
-    } else {
-      result = await apiService.mutation(mutation, variables: variables);
-    }
+    final result = await apiService.mutation(mutation, variables: variables);
 
     return result.containsKey('createItem');
   }
