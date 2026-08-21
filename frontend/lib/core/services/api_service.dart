@@ -111,7 +111,7 @@ class ApiService {
       final mediaType = _imageMediaType(filename);
       final response = await _client
           .post(
-            Uri.parse('$apiOrigin/api/items/$itemId/photo'),
+            Uri.parse('$apiOrigin/rest/items/$itemId/photo'),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',

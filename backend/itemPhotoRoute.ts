@@ -22,7 +22,7 @@ type CommonContext = {
 export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
   // Use JSON (not multipart) so Keystone's graphql-upload middleware does not intercept the request.
   app.post(
-    '/api/items/:id/photo',
+    '/rest/items/:id/photo',
     express.json({ limit: '10mb' }),
     async (req: any, res: any) => {
       try {
