@@ -1,11 +1,5 @@
-import fs from 'fs';
-import multer from 'multer';
-import os from 'os';
-
-const upload = multer({
-  dest: os.tmpdir(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-});
+import { Readable } from 'stream';
+import express from 'express';
 
 type CommonContext = {
   withRequest: (
@@ -26,58 +20,64 @@ type CommonContext = {
 };
 
 export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
-  app.post('/api/items/:id/photo', upload.single('photo'), async (req: any, res: any) => {
-    const tempPath = req.file?.path as string | undefined;
+  // Use JSON (not multipart) so Keystone's graphql-upload middleware does not intercept the request.
+  app.post(
+    '/api/items/:id/photo',
+    express.json({ limit: '10mb' }),
+    async (req: any, res: any) => {
+      try {
+        const { imageBase64, filename, mimetype } = req.body ?? {};
 
-    try {
-      if (!req.file) {
-        res.status(400).json({ error: 'Photo file is required' });
-        return;
+        if (!imageBase64 || typeof imageBase64 !== 'string') {
+          res.status(400).json({ error: 'imageBase64 is required' });
+          return;
+        }
+
+        const buffer = Buffer.from(imageBase64, 'base64');
+        if (buffer.length === 0) {
+          res.status(400).json({ error: 'Invalid image data' });
+          return;
+        }
+
+        const context = await commonContext.withRequest(req, res);
+        if (!context.session?.itemId) {
+          res.status(401).json({ error: 'Not authenticated' });
+          return;
+        }
+
+        const itemId = String(req.params.id);
+        const item = await context.db.Item.findOne({ where: { id: itemId } });
+
+        if (!item) {
+          res.status(404).json({ error: 'Item not found' });
+          return;
+        }
+
+        if (item.postedById !== context.session.itemId) {
+          res.status(403).json({ error: 'Only the item owner can upload a photo' });
+          return;
+        }
+
+        const { default: Upload } = await import('graphql-upload/Upload.mjs');
+        const fileUpload = new Upload();
+        fileUpload.resolve({
+          createReadStream: () => Readable.from(buffer),
+          filename: typeof filename === 'string' && filename.length > 0 ? filename : 'photo.jpg',
+          mimetype: typeof mimetype === 'string' && mimetype.length > 0 ? mimetype : 'image/jpeg',
+        });
+
+        await context.db.Item.updateOne({
+          where: { id: itemId },
+          data: {
+            photo: { upload: fileUpload },
+          },
+        });
+
+        res.json({ ok: true });
+      } catch (error) {
+        console.error('Photo upload failed', error);
+        res.status(500).json({ error: String(error) });
       }
-
-      const context = await commonContext.withRequest(req, res);
-      if (!context.session?.itemId) {
-        res.status(401).json({ error: 'Not authenticated' });
-        return;
-      }
-
-      const itemId = String(req.params.id);
-      const item = await context.db.Item.findOne({ where: { id: itemId } });
-
-      if (!item) {
-        res.status(404).json({ error: 'Item not found' });
-        return;
-      }
-
-      if (item.postedById !== context.session.itemId) {
-        res.status(403).json({ error: 'Only the item owner can upload a photo' });
-        return;
-      }
-
-      // graphql-upload v15+ is ESM-only; import the Upload class from its subpath.
-      const { default: Upload } = await import('graphql-upload/Upload.mjs');
-      const fileUpload = new Upload();
-      fileUpload.resolve({
-        createReadStream: () => fs.createReadStream(tempPath!),
-        filename: req.file.originalname || 'photo.jpg',
-        mimetype: req.file.mimetype || 'image/jpeg',
-      });
-
-      await context.db.Item.updateOne({
-        where: { id: itemId },
-        data: {
-          photo: { upload: fileUpload },
-        },
-      });
-
-      res.json({ ok: true });
-    } catch (error) {
-      console.error('Photo upload failed', error);
-      res.status(500).json({ error: String(error) });
-    } finally {
-      if (tempPath) {
-        fs.unlink(tempPath, () => {});
-      }
-    }
-  });
+    },
+  );
 }

@@ -108,35 +108,35 @@ class ApiService {
     }
 
     try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$apiOrigin/api/items/$itemId/photo'),
-      );
-      request.headers['Accept'] = 'application/json';
-      request.headers['Authorization'] = 'Bearer $_sessionToken';
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'photo',
-          fileBytes,
-          filename: filename,
-          contentType: _imageMediaType(filename),
-        ),
-      );
-
-      final streamed = await request.send().timeout(
-        const Duration(seconds: 60),
-        onTimeout: () => throw Exception('Upload timeout'),
-      );
-      final response = await http.Response.fromStream(streamed);
-      final body = response.body;
+      final mediaType = _imageMediaType(filename);
+      final response = await _client
+          .post(
+            Uri.parse('$apiOrigin/api/items/$itemId/photo'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $_sessionToken',
+            },
+            body: jsonEncode({
+              'imageBase64': base64Encode(fileBytes),
+              'filename': filename,
+              'mimetype': '${mediaType.type}/${mediaType.subtype}',
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 60),
+            onTimeout: () => throw Exception('Upload timeout'),
+          );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return true;
       }
 
-      logger.e('Photo upload HTTP Error: ${response.statusCode} $body');
+      logger.e('Photo upload HTTP Error: ${response.statusCode} ${response.body}');
       throw Exception(
-        body.isNotEmpty ? 'HTTP ${response.statusCode}: $body' : 'HTTP ${response.statusCode}',
+        response.body.isNotEmpty
+            ? 'HTTP ${response.statusCode}: ${response.body}'
+            : 'HTTP ${response.statusCode}',
       );
     } catch (e) {
       logger.e('Photo upload error: $e');
