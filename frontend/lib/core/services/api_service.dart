@@ -93,6 +93,10 @@ class ApiService {
     required List<int> fileBytes,
     required String filename,
   }) async {
+    if (_sessionToken == null || _sessionToken!.isEmpty) {
+      throw Exception('Not signed in. Please sign in before uploading a photo.');
+    }
+
     try {
       final request = http.MultipartRequest('POST', Uri.parse(baseUrl));
       request.headers['Accept'] = 'application/json';

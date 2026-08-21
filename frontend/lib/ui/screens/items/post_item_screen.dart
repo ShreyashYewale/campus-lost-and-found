@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:campus_lost_found/core/services/api_service.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
@@ -230,6 +231,7 @@ class _PostItemScreenState extends State<PostItemScreen> {
 
     setState(() => _isSubmitting = true);
     try {
+      context.read<ApiService>().setSessionToken(authService.token);
       final itemService = context.read<ItemService>();
       final created = await itemService.createItem(
         title: _titleController.text.trim(),

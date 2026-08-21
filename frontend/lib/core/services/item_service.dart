@@ -76,58 +76,6 @@ class ItemService {
     List<int>? photoBytes,
     String? photoFilename,
   }) async {
-    if (photoBytes != null && photoBytes.isNotEmpty) {
-      const mutationWithPhoto = r'''
-        mutation CreateItem(
-          $title: String!,
-          $description: String!,
-          $type: String!,
-          $category: String!,
-          $location: String!,
-          $status: String!,
-          $postedBy: UserRelateToOneForCreateInput!,
-          $photo: Upload!
-        ) {
-          createItem(data: {
-            title: $title,
-            description: $description,
-            type: $type,
-            category: $category,
-            location: $location,
-            status: $status,
-            postedBy: $postedBy,
-            photo: { upload: $photo }
-          }) {
-            id
-            title
-            photo {
-              url
-            }
-          }
-        }
-      ''';
-
-      final variables = {
-        'title': title,
-        'description': description,
-        'type': type,
-        'category': category,
-        'location': location,
-        'status': status,
-        'postedBy': {'connect': {'id': postedById}},
-      };
-
-      final result = await apiService.uploadMutation(
-        mutationWithPhoto,
-        variables: variables,
-        fileVariableKey: 'photo',
-        fileBytes: photoBytes,
-        filename: photoFilename ?? 'photo.jpg',
-      );
-
-      return result.containsKey('createItem');
-    }
-
     const mutation = r'''
       mutation CreateItem(
         $title: String!,
@@ -163,9 +111,52 @@ class ItemService {
       'postedBy': {'connect': {'id': postedById}},
     };
 
-    final result = await apiService.mutation(mutation, variables: variables);
+    final createResult = await apiService.mutation(mutation, variables: variables);
+    final createdItem = createResult['createItem'] as Map<String, dynamic>?;
+    if (createdItem == null) return false;
 
-    return result.containsKey('createItem');
+    if (photoBytes == null || photoBytes.isEmpty) {
+      return true;
+    }
+
+    final itemId = createdItem['id']?.toString();
+    if (itemId == null || itemId.isEmpty) return false;
+
+    return uploadItemPhoto(
+      itemId: itemId,
+      photoBytes: photoBytes,
+      photoFilename: photoFilename ?? 'photo.jpg',
+    );
+  }
+
+  Future<bool> uploadItemPhoto({
+    required String itemId,
+    required List<int> photoBytes,
+    required String photoFilename,
+  }) async {
+    const mutation = r'''
+      mutation UpdateItemPhoto($id: ID!, $photo: Upload!) {
+        updateItem(
+          where: { id: $id },
+          data: { photo: { upload: $photo } }
+        ) {
+          id
+          photo {
+            url
+          }
+        }
+      }
+    ''';
+
+    final result = await apiService.uploadMutation(
+      mutation,
+      variables: {'id': itemId},
+      fileVariableKey: 'photo',
+      fileBytes: photoBytes,
+      filename: photoFilename,
+    );
+
+    return result.containsKey('updateItem');
   }
 
   Future<bool> createClaim({

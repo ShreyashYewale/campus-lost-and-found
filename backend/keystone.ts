@@ -40,6 +40,14 @@ export default withAuth(config({
         callback(new Error(`Origin not allowed by CORS: ${origin}`));
       },
       credentials: true,
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'Apollo-Require-Preflight',
+        'Accept',
+        'X-Apollo-Operation-Name',
+      ],
+      methods: ['GET', 'POST', 'OPTIONS'],
     },
   },
 }));
