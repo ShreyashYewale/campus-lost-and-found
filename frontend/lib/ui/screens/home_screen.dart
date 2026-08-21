@@ -2,9 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
+import 'package:campus_lost_found/core/services/notification_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _unreadCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final authService = context.read<AuthService>();
+    if (!authService.isAuthenticated) return;
+
+    try {
+      final count = await context.read<NotificationService>().fetchUnreadCount();
+      if (mounted) setState(() => _unreadCount = count);
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +82,35 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+                const SizedBox(height: 12),
+                Consumer<AuthService>(
+                  builder: (context, authService, child) {
+                    if (!authService.isAuthenticated) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              await context.push('/notifications');
+                              if (mounted) _loadUnreadCount();
+                            },
+                            icon: const Icon(Icons.notifications),
+                            label: Text(
+                              _unreadCount > 0
+                                  ? 'Notifications ($_unreadCount unread)'
+                                  : 'Notifications',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    );
+                  },
+                ),
                 Consumer<AuthService>(
                   builder: (context, authService, child) {
                     if (authService.isAuthenticated) {

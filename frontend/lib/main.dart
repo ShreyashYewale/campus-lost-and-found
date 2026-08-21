@@ -4,6 +4,7 @@ import 'config/app_config.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/api_service.dart';
 import 'core/services/item_service.dart';
+import 'core/services/notification_service.dart';
 import 'ui/app.dart';
 
 Future<void> main() async {
@@ -13,6 +14,7 @@ Future<void> main() async {
   final apiService = ApiService(baseUrl: config.apiBaseUrl);
   final authService = AuthService(apiService: apiService);
   final itemService = ItemService(apiService: apiService);
+  final notificationService = NotificationService(apiService: apiService);
 
   runApp(
     MultiProvider(
@@ -20,6 +22,7 @@ Future<void> main() async {
         Provider<ApiService>.value(value: apiService),
         ChangeNotifierProvider<AuthService>.value(value: authService),
         Provider<ItemService>.value(value: itemService),
+        Provider<NotificationService>.value(value: notificationService),
       ],
       child: const MyApp(),
     ),

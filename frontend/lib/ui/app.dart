@@ -6,6 +6,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/items/post_item_screen.dart';
 import 'screens/items/item_detail_screen.dart';
 import 'screens/items/search_items_screen.dart';
+import 'screens/notifications_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -47,6 +48,10 @@ class MyApp extends StatelessWidget {
             final id = state.pathParameters['id']!;
             return ItemDetailScreen(itemId: id);
           },
+        ),
+        GoRoute(
+          path: '/notifications',
+          builder: (context, state) => const NotificationsScreen(),
         ),
       ],
       initialLocation: '/',
