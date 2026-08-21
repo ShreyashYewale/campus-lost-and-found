@@ -1,5 +1,5 @@
+import 'package:campus_lost_found/core/offline/item_repository.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
-import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -144,8 +144,8 @@ class _PostItemScreenState extends State<PostItemScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      final itemService = context.read<ItemService>();
-      final created = await itemService.createItem(
+      final repository = context.read<ItemRepository>();
+      final created = await repository.createItem(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
         type: _itemType,
@@ -157,7 +157,13 @@ class _PostItemScreenState extends State<PostItemScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(created ? 'Item posted successfully!' : 'Unable to post item.'),
+            content: Text(
+              created
+                  ? (context.read<ItemRepository>().isOnline
+                      ? 'Item posted successfully!'
+                      : 'Saved offline — will sync when back online.')
+                  : 'Unable to post item.',
+            ),
           ),
         );
         if (created) context.go('/');

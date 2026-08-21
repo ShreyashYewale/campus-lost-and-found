@@ -1,5 +1,5 @@
 import 'package:campus_lost_found/core/models/item.dart';
-import 'package:campus_lost_found/core/services/item_service.dart';
+import 'package:campus_lost_found/core/offline/item_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -28,9 +28,9 @@ class _SearchItemsScreenState extends State<SearchItemsScreen> {
   }
 
   Future<void> _loadItems() async {
-    final itemService = context.read<ItemService>();
+    final repository = context.read<ItemRepository>();
     try {
-      final items = await itemService.fetchItems();
+      final items = await repository.fetchItems();
       if (mounted) {
         setState(() {
           _items = items;

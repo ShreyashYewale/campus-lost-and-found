@@ -1,6 +1,6 @@
 import 'package:campus_lost_found/core/models/item.dart';
+import 'package:campus_lost_found/core/offline/item_repository.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
-import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -26,9 +26,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   Future<void> _loadItem() async {
-    final itemService = context.read<ItemService>();
+    final repository = context.read<ItemRepository>();
     try {
-      final item = await itemService.fetchItemById(widget.itemId);
+      final item = await repository.fetchItemById(widget.itemId);
       if (mounted) {
         setState(() {
           _item = item;
@@ -170,7 +170,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     setState(() => _isClaiming = true);
     try {
       final authService = context.read<AuthService>();
-      final itemService = context.read<ItemService>();
+      final repository = context.read<ItemRepository>();
 
       final claimantId = authService.userId;
       if (claimantId == null || _item == null) {
@@ -183,7 +183,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         return;
       }
 
-      final success = await itemService.createClaim(
+      final success = await repository.createClaim(
         itemId: _item!.id,
         claimantId: claimantId,
         message: '',
@@ -191,7 +191,15 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(success ? 'Claim request sent!' : 'Failed to submit claim.')),
+          SnackBar(
+            content: Text(
+              success
+                  ? (context.read<ItemRepository>().isOnline
+                      ? 'Claim request sent!'
+                      : 'Claim saved offline — will sync when back online.')
+                  : 'Failed to submit claim.',
+            ),
+          ),
         );
         if (success) context.pop();
       }

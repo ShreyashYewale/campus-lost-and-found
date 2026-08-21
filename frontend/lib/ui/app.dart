@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../config/app_theme.dart';
+import '../core/widgets/offline_banner.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/items/post_item_screen.dart';
@@ -19,6 +20,14 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       routerConfig: _buildRouter(),
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return Column(
+          children: [
+            const OfflineBanner(),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        );
+      },
     );
   }
 
