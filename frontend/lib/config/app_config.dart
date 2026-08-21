@@ -22,7 +22,7 @@ class AppConfig {
   factory AppConfig.prod() {
     return AppConfig(
       environment: Environment.production,
-      apiBaseUrl: 'https://api.campuslostfound.com/graphql',
+      apiBaseUrl: 'https://api.campuslostfound.com/api/graphql',
       debugLogging: false,
     );
   }

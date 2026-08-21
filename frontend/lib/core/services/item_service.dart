@@ -7,7 +7,7 @@ class ItemService {
   ItemService({required this.apiService});
 
   Future<List<Item>> fetchItems() async {
-    final query = r'''
+    const query = r'''
       query GetItems {
         items {
           id
@@ -36,7 +36,7 @@ class ItemService {
   }
 
   Future<Item?> fetchItemById(String id) async {
-    final query = r'''
+    const query = r'''
       query GetItemById($id: ID!) {
         item(where: { id: $id }) {
           id
@@ -71,16 +71,18 @@ class ItemService {
     required String type,
     required String category,
     required String location,
+    required String postedById,
     String status = 'open',
   }) async {
-    final mutation = r'''
+    const mutation = r'''
       mutation CreateItem(
         $title: String!,
         $description: String!,
         $type: String!,
         $category: String!,
         $location: String!,
-        $status: String!
+        $status: String!,
+        $postedBy: UserRelateToOneForCreateInput!
       ) {
         createItem(data: {
           title: $title,
@@ -88,7 +90,8 @@ class ItemService {
           type: $type,
           category: $category,
           location: $location,
-          status: $status
+          status: $status,
+          postedBy: $postedBy
         }) {
           id
           title
@@ -103,6 +106,7 @@ class ItemService {
       'category': category,
       'location': location,
       'status': status,
+      'postedBy': {'connect': {'id': postedById}},
     });
 
     return result.containsKey('createItem');
@@ -113,7 +117,7 @@ class ItemService {
     required String claimantId,
     String message = '',
   }) async {
-    final mutation = r'''
+    const mutation = r'''
       mutation CreateClaim(
         $item: ItemRelateToOneForCreateInput!,
         $claimant: UserRelateToOneForCreateInput!,

@@ -1,3 +1,4 @@
+import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -130,6 +131,17 @@ class _PostItemScreenState extends State<PostItemScreen> {
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final authService = context.read<AuthService>();
+    if (!authService.isAuthenticated || authService.userId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please sign in to post an item')),
+        );
+        context.push('/login');
+      }
+      return;
+    }
+
     setState(() => _isSubmitting = true);
     try {
       final itemService = context.read<ItemService>();
@@ -139,6 +151,7 @@ class _PostItemScreenState extends State<PostItemScreen> {
         type: _itemType,
         category: _category,
         location: _locationController.text.trim(),
+        postedById: authService.userId!,
       );
 
       if (mounted) {
