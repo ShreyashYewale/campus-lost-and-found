@@ -20,7 +20,6 @@ type CommonContext = {
 };
 
 export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
-  // Use JSON (not multipart) so Keystone's graphql-upload middleware does not intercept the request.
   app.post(
     '/rest/items/:id/photo',
     express.json({ limit: '10mb' }),
@@ -58,13 +57,17 @@ export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
           return;
         }
 
-        const { default: Upload } = await import('graphql-upload/Upload.mjs');
-        const fileUpload = new Upload();
-        fileUpload.resolve({
+        const safeFilename =
+          typeof filename === 'string' && filename.length > 0 ? filename : 'photo.jpg';
+        const safeMimetype =
+          typeof mimetype === 'string' && mimetype.length > 0 ? mimetype : 'image/jpeg';
+
+        // Avoid graphql-upload ESM imports; Keystone accepts a file-like upload object here.
+        const fileUpload = {
           createReadStream: () => Readable.from(buffer),
-          filename: typeof filename === 'string' && filename.length > 0 ? filename : 'photo.jpg',
-          mimetype: typeof mimetype === 'string' && mimetype.length > 0 ? mimetype : 'image/jpeg',
-        });
+          filename: safeFilename,
+          mimetype: safeMimetype,
+        };
 
         await context.db.Item.updateOne({
           where: { id: itemId },
