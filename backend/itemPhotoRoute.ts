@@ -1,5 +1,9 @@
+import { createRequire } from 'node:module';
 import { Readable } from 'stream';
 import express from 'express';
+
+const require = createRequire(__filename);
+const { Upload } = require('graphql-upload');
 
 type CommonContext = {
   withRequest: (
@@ -18,6 +22,17 @@ type CommonContext = {
     };
   }>;
 };
+
+function createUploadFromBuffer(buffer: Buffer, filename: string, mimetype: string) {
+  const upload = new Upload();
+  upload.resolve({
+    createReadStream: () => Readable.from(buffer),
+    filename,
+    mimetype,
+    encoding: 'utf-8',
+  });
+  return upload;
+}
 
 export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
   app.post(
@@ -62,17 +77,12 @@ export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
         const safeMimetype =
           typeof mimetype === 'string' && mimetype.length > 0 ? mimetype : 'image/jpeg';
 
-        // Avoid graphql-upload ESM imports; Keystone accepts a file-like upload object here.
-        const fileUpload = {
-          createReadStream: () => Readable.from(buffer),
-          filename: safeFilename,
-          mimetype: safeMimetype,
-        };
-
         await context.db.Item.updateOne({
           where: { id: itemId },
           data: {
-            photo: { upload: fileUpload },
+            photo: {
+              upload: createUploadFromBuffer(buffer, safeFilename, safeMimetype),
+            },
           },
         });
 
