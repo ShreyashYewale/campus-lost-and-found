@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Campus Lost &amp; Found needs camera access to attach photos to lost and found items.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Campus Lost &amp; Found needs photo library access to attach images to lost and found items.</string>
 </dict>
 </plist>

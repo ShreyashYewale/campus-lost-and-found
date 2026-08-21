@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:campus_lost_found/core/services/api_service.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -39,18 +40,63 @@ class _PostItemScreenState extends State<PostItemScreen> {
   }
 
   Future<void> _pickPhoto(ImageSource source) async {
-    final picked = await _imagePicker.pickImage(
-      source: source,
-      maxWidth: 1600,
-      imageQuality: 85,
-    );
-    if (picked == null) return;
+    if (kIsWeb && source == ImageSource.camera) {
+      final host = Uri.base.host;
+      if (host != 'localhost' && host != '127.0.0.1') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Camera on web only works at http://localhost:8080. Use Gallery, or restart with --web-hostname=localhost.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+    }
 
-    final bytes = await picked.readAsBytes();
-    setState(() {
-      _photoBytes = bytes;
-      _photoFilename = picked.name;
-    });
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 85,
+        requestFullMetadata: !kIsWeb,
+      );
+
+      if (picked == null) {
+        if (mounted && source == ImageSource.camera) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Camera was not opened. Allow camera permission in the browser, or use Gallery.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      final bytes = await picked.readAsBytes();
+      if (!mounted) return;
+
+      setState(() {
+        _photoBytes = bytes;
+        _photoFilename = picked.name.isNotEmpty ? picked.name : 'photo.jpg';
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              source == ImageSource.camera
+                  ? 'Camera error: $e. Try Gallery instead.'
+                  : 'Could not pick image: $e',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _clearPhoto() {
