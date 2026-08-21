@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 class PostItemScreen extends StatefulWidget {
@@ -16,10 +19,13 @@ class _PostItemScreenState extends State<PostItemScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
+  final _imagePicker = ImagePicker();
 
   String _itemType = 'lost';
   String _category = 'other';
   bool _isSubmitting = false;
+  Uint8List? _photoBytes;
+  String? _photoFilename;
 
   final categories = ['electronics', 'id_cards', 'keys', 'bags', 'books', 'clothing', 'other'];
 
@@ -29,6 +35,28 @@ class _PostItemScreenState extends State<PostItemScreen> {
     _descriptionController.dispose();
     _locationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPhoto(ImageSource source) async {
+    final picked = await _imagePicker.pickImage(
+      source: source,
+      maxWidth: 1600,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    final bytes = await picked.readAsBytes();
+    setState(() {
+      _photoBytes = bytes;
+      _photoFilename = picked.name;
+    });
+  }
+
+  void _clearPhoto() {
+    setState(() {
+      _photoBytes = null;
+      _photoFilename = null;
+    });
   }
 
   @override
@@ -54,6 +82,64 @@ class _PostItemScreenState extends State<PostItemScreen> {
                   onSelectionChanged: (Set<String> newSelection) {
                     setState(() => _itemType = newSelection.first);
                   },
+                ),
+                const SizedBox(height: 24),
+                const Text('Photo', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                if (_photoBytes != null)
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          _photoBytes!,
+                          width: double.infinity,
+                          height: 180,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton.filled(
+                          onPressed: _clearPhoto,
+                          icon: const Icon(Icons.close),
+                          style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Container(
+                    width: double.infinity,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade400),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Center(
+                      child: Text('Add a photo to help others identify the item'),
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _isSubmitting ? null : () => _pickPhoto(ImageSource.gallery),
+                        icon: const Icon(Icons.photo_library),
+                        label: const Text('Gallery'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _isSubmitting ? null : () => _pickPhoto(ImageSource.camera),
+                        icon: const Icon(Icons.camera_alt),
+                        label: const Text('Camera'),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
@@ -152,6 +238,8 @@ class _PostItemScreenState extends State<PostItemScreen> {
         category: _category,
         location: _locationController.text.trim(),
         postedById: authService.userId!,
+        photoBytes: _photoBytes,
+        photoFilename: _photoFilename,
       );
 
       if (mounted) {

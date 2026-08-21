@@ -33,6 +33,9 @@ dependencies:
   uuid: ^4.0.0
   logger: ^2.0.0
 
+  # Media
+  image_picker: ^1.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

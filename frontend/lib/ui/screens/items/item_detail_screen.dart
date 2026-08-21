@@ -1,4 +1,5 @@
 import 'package:campus_lost_found/core/models/item.dart';
+import 'package:campus_lost_found/core/widgets/item_photo.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
@@ -60,18 +61,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: double.infinity,
-                        height: 250,
-                        color: _item!.type == ItemType.lost
-                            ? Colors.red.shade100
-                            : Colors.green.shade100,
-                        child: Center(
-                          child: Text(
-                            _item!.type == ItemType.lost ? '❌ LOST' : '✅ FOUND',
-                            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                      ItemPhoto(
+                        photoUrl: _item!.photoUrl,
+                        type: _item!.type == ItemType.lost
+                            ? ItemTypeBadge.lost
+                            : ItemTypeBadge.found,
                       ),
                       Padding(
                         padding: const EdgeInsets.all(16),
