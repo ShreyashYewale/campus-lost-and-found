@@ -1,9 +1,8 @@
-import { createRequire } from 'node:module';
-import { Readable } from 'stream';
+import fs from 'fs';
+import path from 'path';
+import { randomBytes } from 'crypto';
 import express from 'express';
-
-const require = createRequire(__filename);
-const { Upload } = require('graphql-upload');
+import sizeOf from 'image-size';
 
 type CommonContext = {
   withRequest: (
@@ -11,27 +10,40 @@ type CommonContext = {
     res: unknown,
   ) => Promise<{
     session?: { itemId?: string };
+    sudo: () => {
+      prisma: {
+        item: {
+          update: (args: {
+            where: { id: string };
+            data: {
+              photo_id: string;
+              photo_extension: string;
+              photo_filesize: number;
+              photo_width: number;
+              photo_height: number;
+            };
+          }) => Promise<unknown>;
+        };
+      };
+    };
     db: {
       Item: {
         findOne: (args: { where: { id: string } }) => Promise<{ postedById?: string | null } | null>;
-        updateOne: (args: {
-          where: { id: string };
-          data: { photo: { upload: unknown } };
-        }) => Promise<unknown>;
       };
     };
   }>;
 };
 
-function createUploadFromBuffer(buffer: Buffer, filename: string, mimetype: string) {
-  const upload = new Upload();
-  upload.resolve({
-    createReadStream: () => Readable.from(buffer),
-    filename,
-    mimetype,
-    encoding: 'utf-8',
-  });
-  return upload;
+const imagesDir = path.join(process.cwd(), 'public', 'images');
+
+function ensureImagesDir() {
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+  }
+}
+
+function generatePhotoId() {
+  return randomBytes(16).toString('hex');
 }
 
 export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
@@ -50,6 +62,19 @@ export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
         const buffer = Buffer.from(imageBase64, 'base64');
         if (buffer.length === 0) {
           res.status(400).json({ error: 'Invalid image data' });
+          return;
+        }
+
+        const metadata = sizeOf(buffer);
+        if (!metadata.width || !metadata.height || !metadata.type) {
+          res.status(400).json({ error: 'Unsupported or invalid image format' });
+          return;
+        }
+
+        const extension = metadata.type === 'jpg' ? 'jpg' : metadata.type;
+        const allowed = new Set(['jpg', 'png', 'webp', 'gif']);
+        if (!allowed.has(extension)) {
+          res.status(400).json({ error: `Unsupported image type: ${extension}` });
           return;
         }
 
@@ -72,21 +97,30 @@ export function registerItemPhotoRoute(app: any, commonContext: CommonContext) {
           return;
         }
 
-        const safeFilename =
-          typeof filename === 'string' && filename.length > 0 ? filename : 'photo.jpg';
-        const safeMimetype =
-          typeof mimetype === 'string' && mimetype.length > 0 ? mimetype : 'image/jpeg';
+        const photoId = generatePhotoId();
+        ensureImagesDir();
+        fs.writeFileSync(path.join(imagesDir, `${photoId}.${extension}`), buffer);
 
-        await context.db.Item.updateOne({
+        await context.sudo().prisma.item.update({
           where: { id: itemId },
           data: {
-            photo: {
-              upload: createUploadFromBuffer(buffer, safeFilename, safeMimetype),
-            },
+            photo_id: photoId,
+            photo_extension: extension,
+            photo_filesize: buffer.length,
+            photo_width: metadata.width,
+            photo_height: metadata.height,
           },
         });
 
-        res.json({ ok: true });
+        res.json({
+          ok: true,
+          photo: {
+            id: photoId,
+            extension,
+            filename: typeof filename === 'string' ? filename : `${photoId}.${extension}`,
+            mimetype: typeof mimetype === 'string' ? mimetype : `image/${extension}`,
+          },
+        });
       } catch (error) {
         console.error('Photo upload failed', error);
         res.status(500).json({ error: String(error) });
