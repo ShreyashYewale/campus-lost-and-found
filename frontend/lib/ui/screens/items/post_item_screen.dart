@@ -219,7 +219,8 @@ class _PostItemScreenState extends State<PostItemScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final authService = context.read<AuthService>();
-    if (!authService.isAuthenticated || authService.userId == null) {
+    await authService.ensureInitialized();
+    if (!authService.isAuthenticated || authService.userId == null || authService.token == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please sign in to post an item')),
@@ -254,9 +255,22 @@ class _PostItemScreenState extends State<PostItemScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final message = e.toString();
+        final needsLogin = message.contains('KS_ACCESS_DENIED') ||
+            message.contains('Access denied');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text(
+              needsLogin
+                  ? 'Session expired. Please sign out and sign in again.'
+                  : 'Error: $e',
+            ),
+          ),
         );
+        if (needsLogin) {
+          await authService.logout();
+          if (mounted) context.push('/login');
+        }
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

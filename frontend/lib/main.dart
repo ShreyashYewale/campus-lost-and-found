@@ -12,6 +12,7 @@ Future<void> main() async {
   final config = AppConfig.dev();
   final apiService = ApiService(baseUrl: config.apiBaseUrl);
   final authService = AuthService(apiService: apiService);
+  await authService.ensureInitialized();
   final itemService = ItemService(apiService: apiService);
 
   runApp(
