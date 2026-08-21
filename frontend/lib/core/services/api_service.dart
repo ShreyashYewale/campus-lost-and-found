@@ -5,13 +5,25 @@ import 'package:logger/logger.dart';
 
 class ApiService {
   final String baseUrl;
+  final String apiOrigin;
   final Logger logger = Logger();
 
   late final http.Client _client;
   String? _sessionToken;
 
-  ApiService({required this.baseUrl}) {
+  ApiService({
+    required this.baseUrl,
+    String? apiOrigin,
+  }) : apiOrigin = apiOrigin ?? _deriveOrigin(baseUrl) {
     _client = http.Client();
+  }
+
+  static String _deriveOrigin(String graphqlUrl) {
+    const suffix = '/api/graphql';
+    if (graphqlUrl.endsWith(suffix)) {
+      return graphqlUrl.substring(0, graphqlUrl.length - suffix.length);
+    }
+    return graphqlUrl;
   }
 
   String? get sessionToken => _sessionToken;
@@ -84,6 +96,52 @@ class ApiService {
     if (lower.endsWith('.gif')) return MediaType('image', 'gif');
     if (lower.endsWith('.webp')) return MediaType('image', 'webp');
     return MediaType('image', 'jpeg');
+  }
+
+  Future<bool> uploadItemPhoto({
+    required String itemId,
+    required List<int> fileBytes,
+    required String filename,
+  }) async {
+    if (_sessionToken == null || _sessionToken!.isEmpty) {
+      throw Exception('Not signed in. Please sign in before uploading a photo.');
+    }
+
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$apiOrigin/api/items/$itemId/photo'),
+      );
+      request.headers['Accept'] = 'application/json';
+      request.headers['Authorization'] = 'Bearer $_sessionToken';
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'photo',
+          fileBytes,
+          filename: filename,
+          contentType: _imageMediaType(filename),
+        ),
+      );
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => throw Exception('Upload timeout'),
+      );
+      final response = await http.Response.fromStream(streamed);
+      final body = response.body;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return true;
+      }
+
+      logger.e('Photo upload HTTP Error: ${response.statusCode} $body');
+      throw Exception(
+        body.isNotEmpty ? 'HTTP ${response.statusCode}: $body' : 'HTTP ${response.statusCode}',
+      );
+    } catch (e) {
+      logger.e('Photo upload error: $e');
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> uploadMutation(

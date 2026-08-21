@@ -134,29 +134,11 @@ class ItemService {
     required List<int> photoBytes,
     required String photoFilename,
   }) async {
-    const mutation = r'''
-      mutation UpdateItemPhoto($id: ID!, $photo: Upload!) {
-        updateItem(
-          where: { id: $id },
-          data: { photo: { upload: $photo } }
-        ) {
-          id
-          photo {
-            url
-          }
-        }
-      }
-    ''';
-
-    final result = await apiService.uploadMutation(
-      mutation,
-      variables: {'id': itemId},
-      fileVariableKey: 'photo',
+    return apiService.uploadItemPhoto(
+      itemId: itemId,
       fileBytes: photoBytes,
       filename: photoFilename,
     );
-
-    return result.containsKey('updateItem');
   }
 
   Future<bool> createClaim({

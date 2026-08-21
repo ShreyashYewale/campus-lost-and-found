@@ -10,7 +10,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final config = AppConfig.dev();
-  final apiService = ApiService(baseUrl: config.apiBaseUrl);
+  final apiService = ApiService(
+    baseUrl: config.apiBaseUrl,
+    apiOrigin: config.apiOrigin,
+  );
   final authService = AuthService(apiService: apiService);
   await authService.ensureInitialized();
   final itemService = ItemService(apiService: apiService);

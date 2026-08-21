@@ -1,7 +1,7 @@
 import { config } from '@keystone-6/core';
 import { lists } from './schema';
 import { withAuth, session } from './auth';
-import path from 'path';
+import { registerItemPhotoRoute } from './itemPhotoRoute';
 import 'dotenv/config';
 
 const databaseUrl = process.env.DATABASE_URL || 'file:./keystone.db';
@@ -49,5 +49,8 @@ export default withAuth(config({
       ],
       methods: ['GET', 'POST', 'OPTIONS'],
     },
+  },
+  extendExpressApp: (app, commonContext) => {
+    registerItemPhotoRoute(app, commonContext);
   },
 }));
