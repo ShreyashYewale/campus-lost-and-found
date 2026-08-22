@@ -32,3 +32,10 @@ export const isNotificationRecipient = ({
   session?: Session;
   item?: { recipientId?: string | null };
 }) => !!session?.itemId && session.itemId === item?.recipientId;
+
+// Filter version: restricts a query to only the current user's notifications.
+// Keystone `filter` functions must return a *filter object*, not a boolean.
+export const notificationsForCurrentUser = ({ session }: { session?: Session }) => {
+  if (!session?.itemId) return false; // not logged in -> see nothing
+  return { recipient: { id: { equals: session.itemId } } };
+};

@@ -4,6 +4,7 @@ import 'config/app_config.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/api_service.dart';
 import 'core/services/item_service.dart';
+import 'core/services/claim_service.dart';
 import 'ui/app.dart';
 
 Future<void> main() async {
@@ -17,6 +18,7 @@ Future<void> main() async {
   final authService = AuthService(apiService: apiService);
   await authService.ensureInitialized();
   final itemService = ItemService(apiService: apiService);
+  final claimService = ClaimService(apiService: apiService);
 
   runApp(
     MultiProvider(
@@ -24,6 +26,7 @@ Future<void> main() async {
         Provider<ApiService>.value(value: apiService),
         ChangeNotifierProvider<AuthService>.value(value: authService),
         Provider<ItemService>.value(value: itemService),
+        Provider<ClaimService>.value(value: claimService),
       ],
       child: const MyApp(),
     ),
