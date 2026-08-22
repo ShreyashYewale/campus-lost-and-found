@@ -1,4 +1,3 @@
-// backend/schema.ts
 import { list } from '@keystone-6/core';
 import {
   text, relationship, timestamp, select, image, checkbox, password
@@ -10,7 +9,9 @@ import {
   isNotificationRecipient,
 } from './access';
 import { findMatchingItems, notifyMatch } from './matching';
-
+import { findPossibleDuplicate } from './duplicateCheck';
+import { randomInt } from 'node:crypto';
+ 
 export const lists = {
   User: list({
     access: {
@@ -31,7 +32,7 @@ export const lists = {
       createdAt: timestamp({ defaultValue: { kind: 'now' } }),
     },
   }),
-
+ 
   Item: list({
     access: {
       operation: {
@@ -42,9 +43,33 @@ export const lists = {
       },
     },
     hooks: {
+      validateInput: async ({ operation, resolvedData, inputData, context, addValidationError }) => {
+        // Only check on create, and only when the user hasn't chosen to override.
+        if (operation !== 'create') return;
+        if (inputData.allowDuplicate === true) return;
+ 
+        const rawPostedBy =
+          resolvedData.postedBy?.connect?.id ?? context.session?.itemId ?? null;
+        const postedById = rawPostedBy != null ? String(rawPostedBy) : null;
+ 
+        const duplicate = await findPossibleDuplicate(context, {
+          title: (resolvedData.title as string) ?? '',
+          type: (resolvedData.type as string) ?? '',
+          category: (resolvedData.category as string) ?? '',
+          location: (resolvedData.location as string) ?? '',
+          postedById,
+        });
+ 
+        if (duplicate) {
+          addValidationError(
+            `You already posted a similar item: "${duplicate.title}". ` +
+            `If this is a different item, set allowDuplicate: true to post it anyway.`
+          );
+        }
+      },
       afterOperation: async ({ operation, item, context }) => {
         if (operation !== 'create' || !item) return;
-
+ 
         const matches = await findMatchingItems(context, {
           id: item.id,
           title: item.title as string,
@@ -53,7 +78,7 @@ export const lists = {
           location: item.location as string,
           postedById: item.postedById as string | null | undefined,
         });
-
+ 
         for (const match of matches) {
           await notifyMatch(
             context,
@@ -113,10 +138,12 @@ export const lists = {
       dateOccurred: timestamp(),
       postedBy: relationship({ ref: 'User.items', many: false }),
       claims: relationship({ ref: 'Claim.item', many: true }),
+      // When true, skips the duplicate-detection check for this post.
+      allowDuplicate: checkbox({ defaultValue: false }),
       createdAt: timestamp({ defaultValue: { kind: 'now' } }),
     },
   }),
-
+ 
   Claim: list({
     access: {
       operation: {
@@ -127,24 +154,61 @@ export const lists = {
       },
     },
     hooks: {
+      // When a claim is approved, generate a one-time password (OTP) that the
+      // finder and claimant use to confirm the hand-over in person.
+      resolveInput: async ({ operation, resolvedData, item }) => {
+        if (
+          operation === 'update' &&
+          resolvedData.status === 'approved' &&
+          item?.status !== 'approved'
+        ) {
+          const otp = String(randomInt(100000, 1000000));
+          resolvedData.otpCode = otp;
+          resolvedData.otpExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+          resolvedData.otpVerified = false;
+        }
+        return resolvedData;
+      },
       afterOperation: async ({ operation, item, context }) => {
-        if (operation !== 'create' || !item?.itemId) return;
-
         const sudo = context.sudo();
-        const relatedItem = await sudo.db.Item.findOne({
-          where: { id: String(item.itemId) },
-        });
-
-        if (!relatedItem?.postedById) return;
-
-        await sudo.db.Notification.createOne({
-          data: {
-            recipient: { connect: { id: relatedItem.postedById } },
-            type: 'claim',
-            message: `Someone submitted a claim on your item "${relatedItem.title}".`,
-            relatedItem: { connect: { id: String(relatedItem.id) } },
-          },
-        });
+ 
+        // On create: notify the item owner that a claim came in.
+        if (operation === 'create' && item?.itemId) {
+          const relatedItem = await sudo.db.Item.findOne({
+            where: { id: String(item.itemId) },
+          });
+          if (relatedItem?.postedById) {
+            await sudo.db.Notification.createOne({
+              data: {
+                recipient: { connect: { id: relatedItem.postedById } },
+                type: 'claim',
+                message: `Someone submitted a claim on your item "${relatedItem.title}".`,
+                relatedItem: { connect: { id: String(relatedItem.id) } },
+              },
+            });
+          }
+        }
+ 
+        // On approval: send the OTP to the claimant to prove identity at hand-over.
+        if (
+          operation === 'update' &&
+          item?.status === 'approved' &&
+          item?.otpCode &&
+          item?.claimantId
+        ) {
+          await sudo.db.Notification.createOne({
+            data: {
+              recipient: { connect: { id: String(item.claimantId) } },
+              type: 'claim_approved',
+              message:
+                `Your claim was approved. Your collection OTP is ${item.otpCode}. ` +
+                `Show it to the finder to collect the item. It expires in 15 minutes.`,
+              ...(item.itemId
+                ? { relatedItem: { connect: { id: String(item.itemId) } } }
+                : {}),
+            },
+          });
+        }
       },
     },
     fields: {
@@ -159,10 +223,14 @@ export const lists = {
         ],
         defaultValue: 'pending',
       }),
+      // --- OTP for in-person hand-over verification ---
+      otpCode: text(),
+      otpExpiresAt: timestamp(),
+      otpVerified: checkbox({ defaultValue: false }),
       createdAt: timestamp({ defaultValue: { kind: 'now' } }),
     },
   }),
-
+ 
   Notification: list({
     access: {
       operation: {
@@ -192,3 +260,4 @@ export const lists = {
     },
   }),
 };
+ 

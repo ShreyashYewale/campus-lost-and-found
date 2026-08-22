@@ -1,5 +1,5 @@
 import 'dart:typed_data';
-
+ 
 import 'package:campus_lost_found/core/services/api_service.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
@@ -7,29 +7,29 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-
+ 
 class PostItemScreen extends StatefulWidget {
   const PostItemScreen({Key? key}) : super(key: key);
-
+ 
   @override
   State<PostItemScreen> createState() => _PostItemScreenState();
 }
-
+ 
 class _PostItemScreenState extends State<PostItemScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _locationController = TextEditingController();
   final _imagePicker = ImagePicker();
-
+ 
   String _itemType = 'lost';
   String _category = 'other';
   bool _isSubmitting = false;
   Uint8List? _photoBytes;
   String? _photoFilename;
-
+ 
   final categories = ['electronics', 'id_cards', 'keys', 'bags', 'books', 'clothing', 'other'];
-
+ 
   @override
   void dispose() {
     _titleController.dispose();
@@ -37,7 +37,7 @@ class _PostItemScreenState extends State<PostItemScreen> {
     _locationController.dispose();
     super.dispose();
   }
-
+ 
   Future<void> _pickPhoto(ImageSource source) async {
     final picked = await _imagePicker.pickImage(
       source: source,
@@ -45,21 +45,21 @@ class _PostItemScreenState extends State<PostItemScreen> {
       imageQuality: 85,
     );
     if (picked == null) return;
-
+ 
     final bytes = await picked.readAsBytes();
     setState(() {
       _photoBytes = bytes;
       _photoFilename = picked.name;
     });
   }
-
+ 
   void _clearPhoto() {
     setState(() {
       _photoBytes = null;
       _photoFilename = null;
     });
   }
-
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -214,10 +214,10 @@ class _PostItemScreenState extends State<PostItemScreen> {
       ),
     );
   }
-
-  Future<void> _handleSubmit() async {
+ 
+  Future<void> _handleSubmit({bool allowDuplicate = false}) async {
     if (!_formKey.currentState!.validate()) return;
-
+ 
     final authService = context.read<AuthService>();
     await authService.ensureInitialized();
     if (!authService.isAuthenticated || authService.userId == null || authService.token == null) {
@@ -229,7 +229,7 @@ class _PostItemScreenState extends State<PostItemScreen> {
       }
       return;
     }
-
+ 
     setState(() => _isSubmitting = true);
     try {
       context.read<ApiService>().setSessionToken(authService.token);
@@ -241,10 +241,11 @@ class _PostItemScreenState extends State<PostItemScreen> {
         category: _category,
         location: _locationController.text.trim(),
         postedById: authService.userId!,
+        allowDuplicate: allowDuplicate,
         photoBytes: _photoBytes,
         photoFilename: _photoFilename,
       );
-
+ 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -256,6 +257,18 @@ class _PostItemScreenState extends State<PostItemScreen> {
     } catch (e) {
       if (mounted) {
         final message = e.toString();
+ 
+        // The backend blocks likely duplicates. Offer to post anyway.
+        final isDuplicate = message.contains('already posted a similar item');
+        if (isDuplicate && !allowDuplicate) {
+          setState(() => _isSubmitting = false);
+          final postAnyway = await _showDuplicateDialog(message);
+          if (postAnyway == true) {
+            await _handleSubmit(allowDuplicate: true);
+          }
+          return;
+        }
+ 
         final needsLogin = message.contains('KS_ACCESS_DENIED') ||
             message.contains('Access denied');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -275,5 +288,41 @@ class _PostItemScreenState extends State<PostItemScreen> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+ 
+  /// Shown when the backend detects a possible duplicate. Lets the user
+  /// confirm they really want to post a second, similar item.
+  Future<bool?> _showDuplicateDialog(String rawMessage) {
+    // Strip GraphQL/Exception wrapper text for a cleaner message.
+    var friendly = rawMessage.replaceAll('Exception:', '').trim();
+    final marker = friendly.indexOf('You already posted');
+    if (marker >= 0) {
+      friendly = friendly.substring(marker);
+      // Cut off any trailing bracketed GraphQL detail.
+      final cut = friendly.indexOf(']');
+      if (cut >= 0) friendly = friendly.substring(0, cut);
+    }
+ 
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Possible duplicate'),
+        content: Text(
+          friendly.isNotEmpty
+              ? friendly
+              : 'You may have already posted a similar item. Post anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Post anyway'),
+          ),
+        ],
+      ),
+    );
   }
 }

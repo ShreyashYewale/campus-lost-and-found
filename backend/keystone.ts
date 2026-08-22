@@ -2,11 +2,12 @@ import { config } from '@keystone-6/core';
 import { lists } from './schema';
 import { withAuth, session } from './auth';
 import { registerItemPhotoRoute } from './itemPhotoRoute';
+import { extendGraphqlSchema } from './otpCheck';
 import 'dotenv/config';
-
+ 
 const databaseUrl = process.env.DATABASE_URL || 'file:./keystone.db';
 const dbProvider = databaseUrl.startsWith('postgres') ? 'postgresql' : 'sqlite';
-
+ 
 export default withAuth(config({
   db: {
     provider: dbProvider,
@@ -14,6 +15,9 @@ export default withAuth(config({
   },
   lists,
   session,
+  graphql: {
+    extendGraphqlSchema,
+  },
   storage: {
     local_images: {
       kind: 'local',
