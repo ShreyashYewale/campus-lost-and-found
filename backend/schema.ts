@@ -1,3 +1,4 @@
+// backend/schema.ts
 import { list } from '@keystone-6/core';
 import {
   text, relationship, timestamp, select, image, checkbox, password
@@ -11,7 +12,7 @@ import {
 import { findMatchingItems, notifyMatch } from './matching';
 import { findPossibleDuplicate } from './duplicateCheck';
 import { randomInt } from 'node:crypto';
- 
+
 export const lists = {
   User: list({
     access: {
@@ -32,7 +33,7 @@ export const lists = {
       createdAt: timestamp({ defaultValue: { kind: 'now' } }),
     },
   }),
- 
+
   Item: list({
     access: {
       operation: {
@@ -47,11 +48,11 @@ export const lists = {
         // Only check on create, and only when the user hasn't chosen to override.
         if (operation !== 'create') return;
         if (inputData.allowDuplicate === true) return;
- 
+
         const rawPostedBy =
           resolvedData.postedBy?.connect?.id ?? context.session?.itemId ?? null;
         const postedById = rawPostedBy != null ? String(rawPostedBy) : null;
- 
+
         const duplicate = await findPossibleDuplicate(context, {
           title: (resolvedData.title as string) ?? '',
           type: (resolvedData.type as string) ?? '',
@@ -59,16 +60,17 @@ export const lists = {
           location: (resolvedData.location as string) ?? '',
           postedById,
         });
- 
+
         if (duplicate) {
           addValidationError(
-            `You already posted a similar item:`
+            `You already posted a similar item: "${duplicate.title}". ` +
+            `If this is a different item, set allowDuplicate: true to post it anyway.`
           );
         }
       },
       afterOperation: async ({ operation, item, context }) => {
         if (operation !== 'create' || !item) return;
- 
+
         const matches = await findMatchingItems(context, {
           id: item.id,
           title: item.title as string,
@@ -77,7 +79,7 @@ export const lists = {
           location: item.location as string,
           postedById: item.postedById as string | null | undefined,
         });
- 
+
         for (const match of matches) {
           await notifyMatch(
             context,
@@ -142,7 +144,7 @@ export const lists = {
       createdAt: timestamp({ defaultValue: { kind: 'now' } }),
     },
   }),
- 
+
   Claim: list({
     access: {
       operation: {
@@ -170,7 +172,7 @@ export const lists = {
       },
       afterOperation: async ({ operation, item, context }) => {
         const sudo = context.sudo();
- 
+
         // On create: notify the item owner that a claim came in.
         if (operation === 'create' && item?.itemId) {
           const relatedItem = await sudo.db.Item.findOne({
@@ -187,26 +189,30 @@ export const lists = {
             });
           }
         }
- 
+
         // On approval: send the OTP to the claimant to prove identity at hand-over.
-        if (
-          operation === 'update' &&
-          item?.status === 'approved' &&
-          item?.otpCode &&
-          item?.claimantId
-        ) {
-          await sudo.db.Notification.createOne({
-            data: {
-              recipient: { connect: { id: String(item.claimantId) } },
-              type: 'claim_approved',
-              message:
-                `Your claim was approved. Your collection OTP is ${item.otpCode}. ` +
-                `Show it to the finder to collect the item. It expires in 15 minutes.`,
-              ...(item.itemId
-                ? { relatedItem: { connect: { id: String(item.itemId) } } }
-                : {}),
-            },
-          });
+        if (operation === 'update' && item?.status === 'approved') {
+          // Fetch the claim explicitly - claimantId / otpCode aren't always present
+          // on the `item` object after an Admin UI status-only update, so we resolve
+          // them from the stored claim record to be safe.
+          const claim = await sudo.db.Claim.findOne({ where: { id: String(item.id) } });
+          const claimantId = (claim as any)?.claimantId ?? item.claimantId ?? null;
+          const otpCode = (claim as any)?.otpCode ?? item.otpCode ?? null;
+
+          if (claimantId && otpCode) {
+            await sudo.db.Notification.createOne({
+              data: {
+                recipient: { connect: { id: String(claimantId) } },
+                type: 'claim_approved',
+                message:
+                  `Your claim was approved. Your collection OTP is ${otpCode}. ` +
+                  `Show it to the finder to collect the item. It expires in 15 minutes.`,
+                ...(item.itemId
+                  ? { relatedItem: { connect: { id: String(item.itemId) } } }
+                  : {}),
+              },
+            });
+          }
         }
       },
     },
@@ -229,7 +235,7 @@ export const lists = {
       createdAt: timestamp({ defaultValue: { kind: 'now' } }),
     },
   }),
- 
+
   Notification: list({
     access: {
       operation: {
@@ -259,4 +265,3 @@ export const lists = {
     },
   }),
 };
- 
