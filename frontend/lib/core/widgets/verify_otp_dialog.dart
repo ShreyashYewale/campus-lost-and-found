@@ -2,7 +2,7 @@ import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
- 
+
 /// A simple dialog the item owner (finder) uses to verify the OTP that the
 /// claimant received when their claim was approved. On success the backend
 /// marks the claim verified and the item resolved.
@@ -15,26 +15,26 @@ import 'package:provider/provider.dart';
 class VerifyOtpDialog extends StatefulWidget {
   /// Optional. If null, the dialog asks the user to enter the Claim ID too.
   final String? claimId;
- 
+
   const VerifyOtpDialog({Key? key, this.claimId}) : super(key: key);
- 
+
   @override
   State<VerifyOtpDialog> createState() => _VerifyOtpDialogState();
 }
- 
+
 class _VerifyOtpDialogState extends State<VerifyOtpDialog> {
   final _codeController = TextEditingController();
   final _claimIdController = TextEditingController();
   bool _isVerifying = false;
   String? _error;
- 
+
   @override
   void dispose() {
     _codeController.dispose();
     _claimIdController.dispose();
     super.dispose();
   }
- 
+
   Future<void> _verify() async {
     final code = _codeController.text.trim();
     final claimId = widget.claimId ?? _claimIdController.text.trim();
@@ -46,21 +46,21 @@ class _VerifyOtpDialogState extends State<VerifyOtpDialog> {
       setState(() => _error = 'Enter the 6-digit code.');
       return;
     }
- 
+
     setState(() {
       _isVerifying = true;
       _error = null;
     });
- 
+
     try {
       final itemService = context.read<ItemService>();
       final result = await itemService.verifyClaimOtp(
         claimId: claimId,
         code: code,
       );
- 
+
       if (!mounted) return;
- 
+
       if (result.success) {
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,7 +81,7 @@ class _VerifyOtpDialogState extends State<VerifyOtpDialog> {
       }
     }
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -142,4 +142,3 @@ class _VerifyOtpDialogState extends State<VerifyOtpDialog> {
     );
   }
 }
- 

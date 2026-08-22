@@ -8,6 +8,7 @@ import {
   isOwner,
   isClaimant,
   isNotificationRecipient,
+  notificationsForCurrentUser,
 } from './access';
 import { findMatchingItems, notifyMatch } from './matching';
 import { findPossibleDuplicate } from './duplicateCheck';
@@ -245,7 +246,7 @@ export const lists = {
         delete: isNotificationRecipient,
       },
       filter: {
-        query: isNotificationRecipient,
+        query: notificationsForCurrentUser,
       },
     },
     fields: {

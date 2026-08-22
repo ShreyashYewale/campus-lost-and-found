@@ -70,6 +70,30 @@ class HomeScreen extends StatelessWidget {
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => context.push('/notifications'),
+                              icon: const Icon(Icons.notifications),
+                              label: const Text('Notifications'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () => context.push('/claims'),
+                              icon: const Icon(Icons.assignment_turned_in),
+                              label: const Text('Claims on My Items'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
                             child: OutlinedButton.icon(
                               onPressed: () async {
                                 await authService.logout();
