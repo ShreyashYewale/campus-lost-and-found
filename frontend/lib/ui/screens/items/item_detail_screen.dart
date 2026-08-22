@@ -1,31 +1,32 @@
 import 'package:campus_lost_found/core/models/item.dart';
 import 'package:campus_lost_found/core/widgets/item_photo.dart';
+import 'package:campus_lost_found/core/widgets/verify_otp_dialog.dart';
 import 'package:campus_lost_found/core/services/auth_service.dart';
 import 'package:campus_lost_found/core/services/item_service.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-
+ 
 class ItemDetailScreen extends StatefulWidget {
   final String itemId;
-
+ 
   const ItemDetailScreen({Key? key, required this.itemId}) : super(key: key);
-
+ 
   @override
   State<ItemDetailScreen> createState() => _ItemDetailScreenState();
 }
-
+ 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   bool _isClaiming = false;
   bool _isLoading = true;
   Item? _item;
-
+ 
   @override
   void initState() {
     super.initState();
     _loadItem();
   }
-
+ 
   Future<void> _loadItem() async {
     final itemService = context.read<ItemService>();
     try {
@@ -42,7 +43,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       }
     }
   }
-
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -150,6 +151,16 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                                 label: const Text('Contact Poster'),
                               ),
                             ),
+                            const SizedBox(height: 12),
+                            // Finder uses this to verify the claimant's OTP at hand-over.
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _openVerifyOtp,
+                                icon: const Icon(Icons.verified_user),
+                                label: const Text('Verify Collection OTP'),
+                              ),
+                            ),
                             const SizedBox(height: 24),
                           ],
                         ),
@@ -159,13 +170,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 ),
     );
   }
-
+ 
+  Future<void> _openVerifyOtp() async {
+    await showDialog<bool>(
+      context: context,
+      builder: (_) => const VerifyOtpDialog(),
+    );
+    // Refresh the item so a resolved status shows after successful verification.
+    if (mounted) _loadItem();
+  }
+ 
   Future<void> _handleClaim() async {
     setState(() => _isClaiming = true);
     try {
       final authService = context.read<AuthService>();
       final itemService = context.read<ItemService>();
-
+ 
       final claimantId = authService.userId;
       if (claimantId == null || _item == null) {
         if (mounted) {
@@ -176,13 +196,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         }
         return;
       }
-
+ 
       final success = await itemService.createClaim(
         itemId: _item!.id,
         claimantId: claimantId,
         message: '',
       );
-
+ 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(success ? 'Claim request sent!' : 'Failed to submit claim.')),
@@ -200,3 +220,4 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
   }
 }
+ 
