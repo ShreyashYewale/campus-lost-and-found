@@ -62,8 +62,7 @@ export const lists = {
  
         if (duplicate) {
           addValidationError(
-            `You already posted a similar item: "${duplicate.title}". ` +
-            `If this is a different item, set allowDuplicate: true to post it anyway.`
+            `You already posted a similar item:`
           );
         }
       },
